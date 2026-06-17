@@ -17,6 +17,7 @@
 #include "game/JSParty.h"
 #include "game/JSPresetUnit.h"
 #include "game/JSRoom.h"
+#include "game/JSTxtTables.h"
 #include "game/JSUnit.h"
 #include "io/JSDBStatement.h"
 #include "io/JSDirectory.h"
@@ -63,6 +64,9 @@ void RegisterAllClasses(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> glob
     global->Set(isolate, "Socket", JSSocket::GetTemplate(isolate));
     global->Set(isolate, "SQLite", JSSQLite::GetTemplate(isolate));
     global->Set(isolate, "DBStatement", JSDBStatement::GetTemplate(isolate));
+
+    // Game data tables (static namespace; not constructable)
+    global->Set(isolate, "TxtTables", JSTxtTables::GetTemplate(isolate));
 }
 
 void ClearAllClassCaches(v8::Isolate* isolate) {
@@ -97,6 +101,9 @@ void ClearAllClassCaches(v8::Isolate* isolate) {
     JSSocket::ClearCache(isolate);
     JSSQLite::ClearCache(isolate);
     JSDBStatement::ClearCache(isolate);
+
+    // Game data tables
+    JSTxtTables::ClearCache(isolate);
 }
 
 v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context> context) {

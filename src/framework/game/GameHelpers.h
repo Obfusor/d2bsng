@@ -115,6 +115,10 @@ using TxtValue = std::variant<std::monostate, int64_t, std::string>;
 
 TxtValue GetTxtValue(std::string_view table, uint32_t row, std::string_view column);
 
+// Number of rows in the named .txt table, or nullopt if the table name is
+// unknown or its game data is not currently loaded (e.g. out of game).
+std::optional<uint32_t> GetTxtTableRowCount(std::string_view table);
+
 int32_t GetQuestFlag(uint32_t quest, uint32_t flag);
 // === Weapon / Stat / Skill Actions ===
 void SwapWeapon();

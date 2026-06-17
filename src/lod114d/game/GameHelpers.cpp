@@ -822,6 +822,13 @@ TxtValue GetTxtValue(std::string_view table, uint32_t row, std::string_view colu
     return std::monostate{};
 }
 
+std::optional<uint32_t> GetTxtTableRowCount(std::string_view table) {
+    if (table.empty()) {
+        return std::nullopt;
+    }
+    return imports::extras::GetTxtTableRowCount(table);
+}
+
 int32_t GetQuestFlag(uint32_t quest, uint32_t flag) {
     return d2common::QUESTRECORD_GetQuestFlag(d2client::QUESTRECORD_GetQuestInfo(), quest, flag);
 }

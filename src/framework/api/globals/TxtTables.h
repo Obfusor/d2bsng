@@ -4,7 +4,7 @@
 // Schema of the Diablo II 1.14d data tables (.txt): table index -> name,
 // and per-table column index -> name. Includes the appended 'affixes' table
 // (magicprefix / magicsuffix).
-// Summary: 27 tables, 2268 columns total.
+// Summary: 28 tables, 2297 columns total.
 #pragma once
 
 #include <array>
@@ -16,7 +16,7 @@ namespace d2bs::game {
 // ============================================================================
 // Table name lookup: table index -> canonical .txt table name.
 // ============================================================================
-inline constexpr std::array<std::string_view, 27> TXT_TABLE_NAMES = {
+inline constexpr std::array<std::string_view, 28> TXT_TABLE_NAMES = {
     "items",         // [ 0]
     "monstats",      // [ 1]
     "skilldesc",     // [ 2]
@@ -44,6 +44,7 @@ inline constexpr std::array<std::string_view, 27> TXT_TABLE_NAMES = {
     "pettable",      // [24]
     "superuniques",  // [25]
     "affixes",       // [26]
+    "properties",    // [27]
 };
 
 // ----------------------------------------------------------------------------
@@ -2476,11 +2477,46 @@ inline constexpr std::array<std::string_view, 41> TXT_COLUMNS_AFFIXES = {
     "add",             // [40]
 };
 
+// ----------------------------------------------------------------------------
+// [27] properties - 29 columns
+// ----------------------------------------------------------------------------
+inline constexpr std::array<std::string_view, 29> TXT_COLUMNS_PROPERTIES = {
+    "code",   // [ 0]
+    "set1",   // [ 1]
+    "set2",   // [ 2]
+    "set3",   // [ 3]
+    "set4",   // [ 4]
+    "set5",   // [ 5]
+    "set6",   // [ 6]
+    "set7",   // [ 7]
+    "val1",   // [ 8]
+    "val2",   // [ 9]
+    "val3",   // [10]
+    "val4",   // [11]
+    "val5",   // [12]
+    "val6",   // [13]
+    "val7",   // [14]
+    "func1",  // [15]
+    "func2",  // [16]
+    "func3",  // [17]
+    "func4",  // [18]
+    "func5",  // [19]
+    "func6",  // [20]
+    "func7",  // [21]
+    "stat1",  // [22]
+    "stat2",  // [23]
+    "stat3",  // [24]
+    "stat4",  // [25]
+    "stat5",  // [26]
+    "stat6",  // [27]
+    "stat7",  // [28]
+};
+
 // ============================================================================
 // Column lookup: table index -> span of that table's column names.
 // Use together with TXT_TABLE_NAMES to resolve (tableIdx, colIdx) -> names.
 // ============================================================================
-inline constexpr std::array<std::span<const std::string_view>, 27> TXT_COLUMNS_BY_TABLE = {
+inline constexpr std::array<std::span<const std::string_view>, 28> TXT_COLUMNS_BY_TABLE = {
     std::span<const std::string_view>{TXT_COLUMNS_ITEMS},         // [ 0] items
     std::span<const std::string_view>{TXT_COLUMNS_MONSTATS},      // [ 1] monstats
     std::span<const std::string_view>{TXT_COLUMNS_SKILLDESC},     // [ 2] skilldesc
@@ -2508,6 +2544,7 @@ inline constexpr std::array<std::span<const std::string_view>, 27> TXT_COLUMNS_B
     std::span<const std::string_view>{TXT_COLUMNS_PETTABLE},      // [24] pettable
     std::span<const std::string_view>{TXT_COLUMNS_SUPERUNIQUES},  // [25] superuniques
     std::span<const std::string_view>{TXT_COLUMNS_AFFIXES},       // [26] affixes
+    std::span<const std::string_view>{TXT_COLUMNS_PROPERTIES},    // [27] properties
 };
 
 }  // namespace d2bs::game
