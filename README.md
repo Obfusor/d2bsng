@@ -19,6 +19,11 @@ debugging of each running script.
 > replacement for the original d2bs. A few behaviors carry over deliberately from the original;
 > see [Caveats](#caveats).
 
+**[API reference &rarr; resurrectedtrader.github.io/d2bsng](https://resurrectedtrader.github.io/d2bsng/)** -
+a browsable, versioned reference for the full script-visible API (classes, global functions,
+events, the `me` object, and the Diablo II `.txt` data tables), with a per-version changelog.
+TypeScript declarations (`d2bsng.d.ts`) for editor completion ship as a release asset.
+
 ## Disclaimer
 
 This is an unofficial, fan-made tool for the 1.14d patch of a game owned by Blizzard
