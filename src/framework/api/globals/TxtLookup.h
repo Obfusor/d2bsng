@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -34,6 +35,21 @@ inline std::optional<std::string_view> ResolveTxtColumn(std::string_view tableNa
                 return std::nullopt;
             }
             return cols[colIdx];
+        }
+    }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+    return std::nullopt;
+}
+
+// Full ordered column-name span for a table, or nullopt if the table name is
+// unknown. Case-insensitive name match (as ResolveTxtColumn). Backs the
+// TxtTables.columns()/row() bindings and the getBaseStat whole-row form.
+inline std::optional<std::span<const std::string_view>> ResolveTxtColumns(std::string_view tableName) {
+    std::string lowered = d2bs::utils::ToLower(std::string(tableName));
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index) - parallel-array lookup by runtime name match
+    for (size_t i = 0; i < d2bs::game::TXT_TABLE_NAMES.size(); ++i) {
+        if (d2bs::game::TXT_TABLE_NAMES[i] == lowered) {
+            return d2bs::game::TXT_COLUMNS_BY_TABLE[i];
         }
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)

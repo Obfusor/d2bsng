@@ -200,6 +200,23 @@ def main() -> int:
         )
     )
 
+    # properties.txt is likewise absent from the reference BaseStatTable; d2bsng's
+    # runtime reader sources it from Game.exe (TXT_AllocTxt_properties). Columns are
+    # listed in struct/offset order - wProp ('code'), then the nSet, wVal, nFunc,
+    # wStat arrays in turn - matching COLS_PROPERTIES in MPQStats.cpp.
+    tables.append(
+        (
+            "properties",
+            [
+                "code",
+                "set1", "set2", "set3", "set4", "set5", "set6", "set7",
+                "val1", "val2", "val3", "val4", "val5", "val6", "val7",
+                "func1", "func2", "func3", "func4", "func5", "func6", "func7",
+                "stat1", "stat2", "stat3", "stat4", "stat5", "stat6", "stat7",
+            ],
+        )
+    )
+
     # Reference-path of the script as displayed in the header banner (forward slashes).
     script_rel = (
         Path(__file__).resolve().relative_to(repo_root).as_posix()

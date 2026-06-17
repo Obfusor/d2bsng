@@ -21,6 +21,7 @@
 #include "api/core/V8Extract.h"
 #include "api/core/V8Function.h"
 #include "api/globals/TxtLookup.h"
+#include "api/globals/TxtTableAccess.h"
 #include "components/config/AppConfig.h"
 #include "components/pathfinding/Pathfinder.h"
 #include "components/script/ScriptEngine.h"
@@ -943,63 +944,32 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             args.GetReturnValue().Set(obj);
         });
 
-    /// @description Read a value from a game data (.txt) table by table, row, and column.
-    /// @signature getBaseStat(table: string, row: number, column: string)
-    /// @signature getBaseStat(table: number, row: number, column: number)
+    /// @description Read game data (.txt) table cells. With a column, returns that one cell; without a column,
+    /// returns an object mapping every column name to its value for the row.
+    /// @signature getBaseStat(table: string|number, row: number, column: string|number)
+    /// @signature getBaseStat(table: string|number, row: number)
     /// @param table {string|number} - table name, or index into the known table-name list
     /// @param row {number} - row index
-    /// @param column {string|number} - column name, or index into the resolved table's columns
-    /// @returns {number|string|undefined} - the cell value, or undefined if unresolved or the cell is empty
+    /// @param column {string|number} - column name, or index into the resolved table's columns; omit for the whole row
+    /// @returns {number|string|object|undefined} - the cell value; a {column: value} object when column is omitted;
+    /// undefined if unresolved, the row is out of range, or the cell is empty
     v8_function::Register(
         isolate, global, "getBaseStat", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-
-            if (args.Length() < 3) {
+            if (args.Length() < 2) {
                 return;
             }
-
-            // Table arg: string (canonical name) or number (index into TXT_TABLE_NAMES).
-            std::string tableName;
-            if (args[0]->IsString()) {
-                tableName = v8_convert::ToString(isolate, args[0]);
-            } else if (args[0]->IsNumber()) {
-                auto resolved = ResolveTxtTable(v8_convert::ToUint32(isolate, args[0]));
-                if (!resolved) {
-                    return;
-                }
-                tableName = std::string(*resolved);
-            } else {
+            auto table = ResolveTableArg(isolate, args[0]);
+            if (!table) {
                 return;
             }
-
             uint32_t row = v8_convert::ToUint32(isolate, args[1]);
-
-            // Column arg: string (canonical name) or number (index into the table's columns).
-            std::string columnName;
-            if (args[2]->IsString()) {
-                columnName = v8_convert::ToString(isolate, args[2]);
-            } else if (args[2]->IsNumber()) {
-                auto resolved = ResolveTxtColumn(tableName, v8_convert::ToUint32(isolate, args[2]));
-                if (!resolved) {
-                    return;
-                }
-                columnName = std::string(*resolved);
-            } else {
+            // No column arg (or explicit undefined) -> whole-row object.
+            if (args.Length() < 3 || args[2]->IsUndefined()) {
+                args.GetReturnValue().Set(BuildTxtRow(isolate, isolate->GetCurrentContext(), *table, row));
                 return;
             }
-
-            auto value = d2bs::game::GetTxtValue(tableName, row, columnName);
-            // Guardrail: if a new alternative is added to TxtValue, this get_if chain must be
-            // extended to avoid silently dropping values. Bump the count + add a branch below.
-            static_assert(std::variant_size_v<d2bs::game::TxtValue> == 3,
-                          "TxtValue alternatives changed - update the get_if chain below");
-            if (auto* n = std::get_if<int64_t>(&value)) {
-                args.GetReturnValue().Set(v8_convert::ToV8(isolate, static_cast<double>(*n)));
-            } else if (auto* s = std::get_if<std::string>(&value)) {
-                args.GetReturnValue().Set(v8_convert::ToV8(isolate, *s));
-            } else {
-                args.GetReturnValue().SetUndefined();
-            }
+            args.GetReturnValue().Set(ResolveTxtCell(isolate, *table, row, args[2]));
         });
 
     /// @description Find the first UI control matching optional position/size filters; menu state only.

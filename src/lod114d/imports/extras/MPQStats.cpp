@@ -13,6 +13,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -2389,7 +2390,48 @@ constexpr std::array<ColumnSchema, 40> COLS_AFFIXES = {{
     {.name = "add", .type = FieldKind::Dword, .bitOrLen = 0x0U, .offset = 0x8cU},
 }};
 
-constexpr std::array<TableSchema, 27> TABLES = {{
+// properties.txt - the property -> (set, val, func, stat) mapping affixes /
+// runewords / set bonuses resolve their mods through. Record layout verified
+// against Game.exe TXT_AllocTxt_properties (column descriptors + record size
+// 0x2e) and D2MOO's D2PropertiesTxt (nSet[7]@0x02, wVal[7]@0x0a, nFunc[7]@0x18,
+// wStat[7]@0x20). Columns are listed in struct/offset order - wProp, then the
+// nSet, wVal, nFunc, wStat arrays in turn - matching the offset-ascending layout
+// of the other tables here; the pad bytes at 0x09 and 0x1f are not columns and
+// are skipped. 'code' is the wProp word at 0x00 (the property's name resolved to
+// its index; NAME_TO_INDEX in the game), so it reads as a number, not the name.
+constexpr std::array<ColumnSchema, 29> COLS_PROPERTIES = {{
+    {.name = "code", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x00U},
+    {.name = "set1", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x02U},
+    {.name = "set2", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x03U},
+    {.name = "set3", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x04U},
+    {.name = "set4", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x05U},
+    {.name = "set5", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x06U},
+    {.name = "set6", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x07U},
+    {.name = "set7", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x08U},
+    {.name = "val1", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x0aU},
+    {.name = "val2", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x0cU},
+    {.name = "val3", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x0eU},
+    {.name = "val4", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x10U},
+    {.name = "val5", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x12U},
+    {.name = "val6", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x14U},
+    {.name = "val7", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x16U},
+    {.name = "func1", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x18U},
+    {.name = "func2", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x19U},
+    {.name = "func3", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x1aU},
+    {.name = "func4", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x1bU},
+    {.name = "func5", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x1cU},
+    {.name = "func6", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x1dU},
+    {.name = "func7", .type = FieldKind::Byte, .bitOrLen = 0x0U, .offset = 0x1eU},
+    {.name = "stat1", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x20U},
+    {.name = "stat2", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x22U},
+    {.name = "stat3", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x24U},
+    {.name = "stat4", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x26U},
+    {.name = "stat5", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x28U},
+    {.name = "stat6", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x2aU},
+    {.name = "stat7", .type = FieldKind::Word, .bitOrLen = 0x0U, .offset = 0x2cU},
+}};
+
+constexpr std::array<TableSchema, 28> TABLES = {{
     {.name = "items",
      .info = {.tableOffset = 0x4426f0U, .countOffset = 0x4426ecU, .isAbsolute = true, .recordSize = 0x1a8U},
      .columns = COLS_ITEMS},
@@ -2473,6 +2515,12 @@ constexpr std::array<TableSchema, 27> TABLES = {{
     {.name = "affixes",
      .info = {.tableOffset = 0x56ca80U, .countOffset = 0x56ca7cU, .isAbsolute = true, .recordSize = 0x90U},
      .columns = COLS_AFFIXES},
+    // properties.txt: pointer + count live in *sgptDataTables (D2MOO
+    // D2DataTblsStrc::pPropertiesTxt @ 0xa4, nPropertiesTxtRecordCount @ 0xac),
+    // 0-based, 0x2e-byte records (Game.exe TXT_AllocTxt_properties).
+    {.name = "properties",
+     .info = {.tableOffset = 0xa4U, .countOffset = 0xacU, .isAbsolute = false, .recordSize = 0x2eU},
+     .columns = COLS_PROPERTIES},
 }};
 
 // === Lookup helpers =========================================================
@@ -2676,6 +2724,21 @@ TxtValue GetTxtValue(std::string_view tableName, uint32_t recordId, std::string_
 
     const uint8_t* record = base + (rowIndex * table->info.recordSize);
     return ReadField(record, *col);
+}
+
+std::optional<uint32_t> GetTxtTableRowCount(std::string_view tableName) {
+    const TableSchema* table = FindTable(tableName);
+    if (table == nullptr) {
+        return std::nullopt;
+    }
+    const uint8_t* base = nullptr;
+    uint32_t count = 0;
+    ResolveTableBase(table->info, &base, &count);
+    if (base == nullptr) {
+        // Data table not loaded yet (out of game, or queried too early).
+        return std::nullopt;
+    }
+    return count;
 }
 
 }  // namespace d2bs::imports::extras

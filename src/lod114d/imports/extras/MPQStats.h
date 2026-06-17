@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -23,5 +24,9 @@ namespace d2bs::imports::extras {
 using TxtValue = std::variant<std::monostate, int64_t, std::string>;
 
 [[nodiscard]] TxtValue GetTxtValue(std::string_view tableName, uint32_t recordId, std::string_view columnName);
+
+// Number of rows in the named table. nullopt when the table name is unknown or
+// the underlying game data table is not yet loaded.
+[[nodiscard]] std::optional<uint32_t> GetTxtTableRowCount(std::string_view tableName);
 
 }  // namespace d2bs::imports::extras
