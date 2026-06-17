@@ -5,5 +5,5 @@
 // un-parameterized IDE builds. d2bsng versions start at 2.x so scripts can tell
 // it apart from legacy d2bs, which topped out at 1.6.x.
 #ifndef D2BS_VERSION
-#define D2BS_VERSION "2.0.0-dev"
+    #define D2BS_VERSION "2.0.0-dev"
 #endif

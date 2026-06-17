@@ -86,6 +86,28 @@ function Get-LlvmTool {
     return Resolve-FirstPath $candidates ([System.IO.Path]::GetFileNameWithoutExtension($Exe))
 }
 
+# clang-format is version-pinned so CI and local agree. An unpinned, VS-bundled
+# clang-format drifts between machines (it infers East vs West pointer alignment
+# differently by version, among other things), which makes `check-format` pass
+# locally yet fail in CI. CI installs this exact version with
+# `pip install clang-format==<ver>` (see .github/workflows/ci.yml); locally we
+# prefer a matching clang-format on PATH and fall back to the VS-bundled tool.
+$PINNED_CLANG_FORMAT = '20.1.8'
+
+function Get-ClangFormat {
+    # Pick the first clang-format on PATH that reports the pinned version (CI
+    # installs it via pip). Scan ALL PATH matches, not just the first, so a
+    # different-version or non-clang-format `clang-format` ahead on PATH (e.g. a
+    # Chromium depot_tools wrapper) can't shadow the pinned one. Probe quietly and
+    # fall back to the VS-bundled tool for local dev.
+    foreach ($cmd in @(Get-Command clang-format -All -ErrorAction SilentlyContinue)) {
+        $verLine = ''
+        try { $verLine = (& $cmd.Source --version 2>$null | Out-String) } catch {}
+        if ($verLine -match [regex]::Escape($PINNED_CLANG_FORMAT)) { return $cmd.Source }
+    }
+    return Get-LlvmTool 'clang-format.exe'
+}
+
 # --- Resolve MSBuild ---
 $msbuildCandidates = @()
 if ($vsInstall) {
@@ -107,9 +129,9 @@ function Get-SourceFiles {
 
 switch ($mode) {
     'format' {
-        $clangFormat = Get-LlvmTool 'clang-format.exe'
+        $clangFormat = Get-ClangFormat
         if (-not $clangFormat) {
-            Write-Host 'clang-format not found. Install LLVM tools via Visual Studio or put clang-format.exe on PATH.' -ForegroundColor Red
+            Write-Host "clang-format not found. Install it with 'pip install clang-format==$PINNED_CLANG_FORMAT' or via Visual Studio LLVM tools." -ForegroundColor Red
             exit 1
         }
         Write-Host 'Formatting source files...'
@@ -118,9 +140,9 @@ switch ($mode) {
         exit 0
     }
     'check-format' {
-        $clangFormat = Get-LlvmTool 'clang-format.exe'
+        $clangFormat = Get-ClangFormat
         if (-not $clangFormat) {
-            Write-Host 'clang-format not found. Install LLVM tools via Visual Studio or put clang-format.exe on PATH.' -ForegroundColor Red
+            Write-Host "clang-format not found. Install it with 'pip install clang-format==$PINNED_CLANG_FORMAT' or via Visual Studio LLVM tools." -ForegroundColor Red
             exit 1
         }
         Write-Host 'Checking format...'
