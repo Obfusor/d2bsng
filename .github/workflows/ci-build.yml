@@ -59,24 +59,32 @@ jobs:
     needs: prepare
     name: Build
     runs-on: windows-latest
+    env:
+      # vcpkg's ABI-keyed binary cache. Caching THIS (not the vcpkg_installed
+      # install tree) is what lets a build reuse prebuilt packages: vcpkg re-runs
+      # `install` on every build and rebuilds from source unless it finds a
+      # matching archive here.
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.prepare.outputs.ref }}
           submodules: true   # D2MOO headers only; its external/ submodules are not used
-      - name: Restore vcpkg cache
+      - name: Restore vcpkg binary cache
         id: vcpkg
         uses: actions/cache/restore@v4
         with:
-          path: |
-            vcpkg_installed
-            tests/framework/vcpkg_installed
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          # run_id (+ job) keeps every save key unique so a fresh build always
+          # saves; the prefix restore-keys then pick up the most recent cache.
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-${{ github.run_id }}-${{ github.job }}
           restore-keys: |
+            vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-
             vcpkg-${{ runner.os }}-
-      - name: Set up vcpkg (enable MSBuild manifest restore)
+      - name: Set up vcpkg (binary cache + MSBuild manifest restore)
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
       # V8 monolith libs are not in the repo; seed them once as the v8-14.0.264.0
       # release asset (v8-libs.zip with x86-release/v8_monolith.lib).
@@ -98,13 +106,13 @@ jobs:
       - name: Build (Release)
         shell: pwsh
         run: .\build.ps1 Release
-      - name: Save vcpkg cache
-        if: steps.vcpkg.outputs.cache-hit != 'true'
+      # Always save: the key is run_id-unique so it never collides, and we want
+      # the freshly-populated binary cache persisted even if a later step fails.
+      - name: Save vcpkg binary cache
+        if: always()
         uses: actions/cache/save@v4
         with:
-          path: |
-            vcpkg_installed
-            tests/framework/vcpkg_installed
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: ${{ steps.vcpkg.outputs.cache-primary-key }}
 
   tests:
@@ -113,36 +121,36 @@ jobs:
     # racing into two concurrent cold-cache misses (build the deps twice).
     needs: [prepare, build]
     runs-on: windows-latest
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.prepare.outputs.ref }}
           submodules: true
-      - name: Restore vcpkg cache
+      - name: Restore vcpkg binary cache
         id: vcpkg
         uses: actions/cache/restore@v4
         with:
-          path: |
-            vcpkg_installed
-            tests/framework/vcpkg_installed
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-${{ github.run_id }}-${{ github.job }}
           restore-keys: |
+            vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-
             vcpkg-${{ runner.os }}-
-      - name: Set up vcpkg (enable MSBuild manifest restore)
+      - name: Set up vcpkg (binary cache + MSBuild manifest restore)
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
       # The test exe links no V8, so no V8 fetch here.
       - name: Build + run tests
         shell: pwsh
         run: .\build.ps1 test
-      - name: Save vcpkg cache
-        if: steps.vcpkg.outputs.cache-hit != 'true'
+      - name: Save vcpkg binary cache
+        if: always()
         uses: actions/cache/save@v4
         with:
-          path: |
-            vcpkg_installed
-            tests/framework/vcpkg_installed
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: ${{ steps.vcpkg.outputs.cache-primary-key }}
 
   # Post the final build+tests result back onto the PR (comment-triggered runs
