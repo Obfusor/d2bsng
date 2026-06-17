@@ -251,6 +251,8 @@ ul.cols code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
 .diff-del{color:var(--del)}
 .diff-chg{color:var(--chg)}
 .diff-sym{font-weight:600}
+a.diff-link{color:inherit;text-decoration:none;cursor:pointer}
+a.diff-link:hover .diff-sym{text-decoration:underline}
 .diff-none{color:var(--muted);font-size:14px}
 
 #menu{display:none;position:fixed;top:10px;left:10px;z-index:30;font-size:20px;background:var(--bg);border:1px solid var(--border);border-radius:6px;width:38px;height:38px;cursor:pointer;color:var(--fg)}
@@ -546,39 +548,51 @@ function ci(a,b){ return a.toLowerCase()<b.toLowerCase()?-1:1; }
 
 // ---- API diff (changelog) ----
 function flatten(data){
-  // key -> {label, fp} ; fp = fingerprint to detect "changed"
+  // key -> {label, fp, anchor} ; fp = fingerprint to detect "changed", anchor =
+  // the API-reference element id (same slug() calls as buildApi) so a changelog
+  // entry can link to its docs.
   var out={};
   if(!data) return out;
   function sigFp(doc){ return JSON.stringify((doc&&doc.signatures)||[]); }
   var cs=data.classes||{};
   Object.keys(cs).forEach(function(n){
-    var c=cs[n]; out['class '+n]={label:'class '+n, fp:(c.extends||'')+'|'+(c.constructable!==false)};
-    c.methods.forEach(function(m){ out[n+'.'+m.name+'()']={label:n+'.'+m.name+'()', fp:sigFp(m.doc)}; });
-    c.static_methods.forEach(function(m){ out[n+'.'+m.name+'() [static]']={label:n+'.'+m.name+'() [static]', fp:sigFp(m.doc)}; });
-    c.properties.forEach(function(p){ out[n+'.'+p.name]={label:n+'.'+p.name, fp:((p.doc||{}).type||'')+'|'+!!p.readonly}; });
-    if(hasOwn(c,'constructor')) out['new '+n+'()']={label:'new '+n+'()', fp:sigFp(c.constructor.doc)};
+    var c=cs[n]; out['class '+n]={label:'class '+n, fp:(c.extends||'')+'|'+(c.constructable!==false), anchor:slug('class',n)};
+    c.methods.forEach(function(m){ out[n+'.'+m.name+'()']={label:n+'.'+m.name+'()', fp:sigFp(m.doc), anchor:slug(n,m.name)}; });
+    c.static_methods.forEach(function(m){ out[n+'.'+m.name+'() [static]']={label:n+'.'+m.name+'() [static]', fp:sigFp(m.doc), anchor:slug(n,'static',m.name)}; });
+    c.properties.forEach(function(p){ out[n+'.'+p.name]={label:n+'.'+p.name, fp:((p.doc||{}).type||'')+'|'+!!p.readonly, anchor:slug(n,p.name)}; });
+    if(hasOwn(c,'constructor')) out['new '+n+'()']={label:'new '+n+'()', fp:sigFp(c.constructor.doc), anchor:slug(n,'constructor')};
   });
-  (data.global_functions||[]).forEach(function(g){ out[g.name+'()']={label:g.name+'()', fp:sigFp(g.doc)}; });
-  (data.me_properties||[]).forEach(function(p){ out['me.'+p.name]={label:'me.'+p.name, fp:((p.doc||{}).type||'')+'|'+!!p.readonly}; });
+  (data.global_functions||[]).forEach(function(g){ out[g.name+'()']={label:g.name+'()', fp:sigFp(g.doc), anchor:slug('fn',g.name)}; });
+  (data.me_properties||[]).forEach(function(p){ out['me.'+p.name]={label:'me.'+p.name, fp:((p.doc||{}).type||'')+'|'+!!p.readonly, anchor:slug('me',p.name)}; });
   Object.keys(data.constants||{}).forEach(function(cn){
     var cv=data.constants[cn];
-    if(cv&&cv.properties) cv.properties.forEach(function(ch){ out[cn+'.'+ch.name]={label:cn+'.'+ch.name, fp:(ch.doc||{}).type||''}; });
-    else out[cn]={label:cn, fp:(cv.doc||{}).type||''};
+    if(cv&&cv.properties) cv.properties.forEach(function(ch){ out[cn+'.'+ch.name]={label:cn+'.'+ch.name, fp:(ch.doc||{}).type||'', anchor:slug('const',cn,ch.name)}; });
+    else out[cn]={label:cn, fp:(cv.doc||{}).type||'', anchor:slug('const',cn)};
   });
-  (data.events||[]).forEach(function(e){ out['event '+e.name]={label:'event '+e.name, fp:(e.signature||'')+'|'+!!e.blockable}; });
+  (data.events||[]).forEach(function(e){ out['event '+e.name]={label:'event '+e.name, fp:(e.signature||'')+'|'+!!e.blockable, anchor:slug('event',e.name)}; });
   return out;
 }
 function diffData(curr,prev){
+  // added/changed exist in the current API, so carry their anchor (link to the
+  // docs); removed symbols are gone from this version, so they get no anchor.
   var a=flatten(prev), b=flatten(curr), added=[],removed=[],changed=[];
-  Object.keys(b).forEach(function(k){ if(!(k in a)) added.push(b[k].label); else if(a[k].fp!==b[k].fp) changed.push(b[k].label); });
-  Object.keys(a).forEach(function(k){ if(!(k in b)) removed.push(a[k].label); });
-  added.sort(); removed.sort(); changed.sort();
+  Object.keys(b).forEach(function(k){
+    if(!(k in a)) added.push({label:b[k].label, anchor:b[k].anchor});
+    else if(a[k].fp!==b[k].fp) changed.push({label:b[k].label, anchor:b[k].anchor});
+  });
+  Object.keys(a).forEach(function(k){ if(!(k in b)) removed.push({label:a[k].label}); });
+  function byLabel(x,y){ return x.label<y.label?-1:(x.label>y.label?1:0); }
+  added.sort(byLabel); removed.sort(byLabel); changed.sort(byLabel);
   return {added:added, removed:removed, changed:changed};
 }
 function diffGroup(title,cls,items){
   if(!items.length) return '';
   return '<div class="diff-group"><h3 class="'+cls+'">'+esc(title)+' ('+items.length+')</h3>'+
-    items.map(function(s){ return '<div class="diff-item '+cls+'"><span class="diff-sym">'+esc(s)+'</span></div>'; }).join('')+'</div>';
+    items.map(function(it){
+      var sym='<span class="diff-sym">'+esc(it.label)+'</span>';
+      return '<div class="diff-item '+cls+'">'+
+        (it.anchor?'<a class="diff-link" href="#'+esc(it.anchor)+'">'+sym+'</a>':sym)+'</div>';
+    }).join('')+'</div>';
 }
 
 // minimal markdown (headings, lists, code, links, bold, inline code)
@@ -627,18 +641,14 @@ function buildChangelog(){
 // ---- interactions (re-bound after each API render) ----
 function initInteractions(){
   var current=null;
-  // Clicking anywhere on a group row (twisty, label, or its section link)
-  // toggles that group; a label that is a section link also navigates (the
-  // anchor default fires too). Leaf links just navigate. Nothing auto-expands,
-  // so a manual collapse stays collapsed.
+  // Clicking a group row (twisty, label, or its section link) toggles that
+  // group; nothing auto-expands, so a manual collapse stays collapsed. Anchor
+  // navigation - scrolling to the symbol, revealing a data-table, and switching
+  // from the changelog to the API tab - is handled once by the #sidebar
+  // listener (navTo), so a label link both toggles here and navigates there.
   nav.onclick=function(e){
     var row=e.target.closest('.grp-row');
     if(row) row.parentElement.classList.toggle('collapsed');
-    var a=e.target.closest('a');
-    if(a){ document.body.classList.remove('nav-open');
-      var tgt=document.getElementById((a.getAttribute('href')||'').slice(1));
-      if(tgt && tgt.tagName==='DETAILS') tgt.open=true;  // reveal a data-table's columns
-    }
   };
   filter();
   // scrollspy: highlight the section in view; never changes collapse state
@@ -683,6 +693,28 @@ function setView(v){
   clView.hidden = v!=='changelog';
   if(v==='changelog') buildChangelog();
 }
+
+// Internal-anchor navigation, bound once on persistent containers (delegation
+// survives re-renders). Sidebar symbol links and changelog diff links both
+// route through navTo: close the mobile drawer, switch to the API tab if the
+// changelog is showing, and reveal a data-table target. We don't preventDefault,
+// so the anchor's own click scrolls + sets :target after the view is visible;
+// the only gap is when the hash already names the target (no re-scroll then), so
+// we nudge that case ourselves.
+function navTo(href){
+  if(!href||href.charAt(0)!=='#'||href.length<2) return;
+  var id=href.slice(1), tgt=document.getElementById(id);
+  document.body.classList.remove('nav-open');
+  if(state.view!=='api') setView('api');
+  if(tgt && tgt.tagName==='DETAILS') tgt.open=true;
+  if(tgt && location.hash==='#'+id) tgt.scrollIntoView({block:'start'});
+}
+document.getElementById('sidebar').addEventListener('click',function(e){
+  var a=e.target.closest('a[href^="#"]'); if(a) navTo(a.getAttribute('href'));
+});
+clView.addEventListener('click',function(e){
+  var a=e.target.closest('a[href^="#"]'); if(a) navTo(a.getAttribute('href'));
+});
 
 // ---- data loading (bundle mode: same-origin versions.json + data/<tag>.json) ----
 function fetchJson(url){ return fetch(url,{cache:'no-cache'}).then(function(r){ if(!r.ok) throw new Error('fetch '+r.status); return r.json(); }); }
