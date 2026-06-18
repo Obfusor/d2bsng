@@ -93,12 +93,19 @@ Beyond the move from SpiderMonkey to V8, this port adds capabilities the origina
   interface rather than hardcoded memory offsets, so the framework is decoupled from any
   single game build and other versions can be supported by adding a sibling implementation.
 
-It also extends a couple of original behaviors:
+It also extends a few original behaviors, several of them around the Diablo II `.txt` data
+tables:
 
 - **`uniqueid` resolves for items.** For unique/set items it returns the file index into
   uniqueitems.txt / setitems.txt; the original returned `-1`.
-- **An extra `affixes` data table** (magicprefix / magicsuffix) is exposed through
-  `getBaseStat`, alongside the original tables.
+- **Extra `affixes` and `properties` data tables.** The magic-affix table (magicprefix /
+  magicsuffix) and properties.txt are exposed through `getBaseStat`, alongside the original
+  tables.
+- **Whole-row reads and a `TxtTables` namespace.** `getBaseStat(table, row)` with the column
+  omitted returns the whole row as a `{column: value}` object, and a non-constructable
+  `TxtTables` global exposes the data tables through static methods for listing tables and
+  columns and reading rows or cells by name - so scripts can discover the schema at runtime
+  instead of hardcoding indices.
 
 ## Screenshots
 
