@@ -1,5 +1,6 @@
 #include "components/update/UpdateChecker.h"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <compare>
@@ -110,12 +111,7 @@ std::optional<SemVer> ParseSemVer(std::string_view s) {
 // are not released versions, so they opt out of update checking entirely.
 bool HasVersionSuffix(std::string_view version) {
     version = StripTagPrefix(version);
-    for (char c : version) {
-        if ((c < '0' || c > '9') && c != '.') {
-            return true;
-        }
-    }
-    return false;
+    return std::ranges::any_of(version, [](char c) { return (c < '0' || c > '9') && c != '.'; });
 }
 
 }  // namespace
