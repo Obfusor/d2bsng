@@ -5,13 +5,30 @@
 #include <array>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
+#include <utility>
+#include <vector>
 
 #include "AppConfig.h"
 #include "components/profile/ProfileData.h"
 #include "components/speedhack/Speedhack.h"
+#include "utils/NamedMutex.h"
 #include "utils/utils.h"
 
 namespace d2bs::config {
+
+namespace {
+// Shared cross-process lock guarding every d2bs.ini read-modify-write. D2BotNG
+// takes a System.Threading.Mutex of the SAME name, so
+// its full-file profile rewrites and our addProfile writes serialize against
+// each other instead of clobbering one another.
+constexpr const wchar_t* INI_LOCK_NAME = L"Local\\d2bs-ini-lock";
+
+// The final atomic swap can transiently fail when a reader briefly holds the
+// file open (GetPrivateProfileString); retry a few times before giving up.
+constexpr int32_t REPLACE_ATTEMPTS = 5;
+constexpr uint32_t REPLACE_RETRY_MS = 20;
+}  // namespace
 
 IniConfigStore::IniConfigStore(std::filesystem::path iniPath) : path_(std::move(iniPath)) {}
 
@@ -106,16 +123,20 @@ std::optional<ProfileData> IniConfigStore::LoadProfile(const std::string& name) 
 }
 
 void IniConfigStore::SaveProfile(const ProfileData& profile) {
-    const auto& section = profile.name;
-    WriteString(section, "mode", ProfileTypeToMode(profile.type));
-    WriteString(section, "character", profile.character);
-    // For TcpIpJoin, the reference stores IP in the "username" field (union).
-    // Write IP to both keys for backward compatibility with old d2bs.
-    WriteString(section, "username", profile.type == ProfileType::TcpIpJoin ? profile.ip : profile.username);
-    WriteString(section, "password", profile.password);
-    WriteString(section, "gateway", profile.gateway);
-    WriteString(section, "ip", profile.ip);
-    WriteString(section, "spdifficulty", std::to_string(static_cast<int32_t>(profile.difficulty)));
+    // Batch every key into one locked, atomic transaction so the section lands
+    // all-or-nothing (see WriteKeys). For TcpIpJoin the
+    // reference stores the IP in the "username" field (union); we also write the
+    // dedicated "ip" key, so old d2bs and d2bsng both round-trip.
+    const std::vector<std::pair<std::string, std::string>> keyValues = {
+        {"mode", ProfileTypeToMode(profile.type)},
+        {"character", profile.character},
+        {"username", profile.type == ProfileType::TcpIpJoin ? profile.ip : profile.username},
+        {"password", profile.password},
+        {"gateway", profile.gateway},
+        {"ip", profile.ip},
+        {"spdifficulty", std::to_string(static_cast<int32_t>(profile.difficulty))},
+    };
+    WriteKeys(profile.name, keyValues);
     // Per-profile script overrides (ScriptPath / DefaultStarterScript /
     // DefaultGameScript / DefaultConsoleScript) are read-only INI fields,
     // hand-edited by users (matches reference JSMenu.cpp:140-150 addProfile,
@@ -189,13 +210,49 @@ std::string IniConfigStore::ReadString(const std::string& section, const std::st
     return utils::ToStr(buffer.data());
 }
 
-void IniConfigStore::WriteString(const std::string& section, const std::string& key, const std::string& value) const {
-    std::wstring wideSection = utils::ToWStr(section);
-    std::wstring wideKey = utils::ToWStr(key);
-    std::wstring wideValue = utils::ToWStr(value);
-    std::wstring widePath = path_.wstring();
+void IniConfigStore::WriteKeys(const std::string& section,
+                               const std::vector<std::pair<std::string, std::string>>& keyValues) const {
+    // Serialize the whole read-modify-write across processes so concurrent
+    // writers (other d2bsng instances, D2BotNG) can't lose each other's updates.
+    const d2bs::utils::NamedMutexLock lock(INI_LOCK_NAME);
+    // Acquired() may be false on timeout; we still proceed - the commit below is
+    // an atomic replace, so the worst case is a lost update, never a torn file.
 
-    WritePrivateProfileStringW(wideSection.c_str(), wideKey.c_str(), wideValue.c_str(), widePath.c_str());
+    const std::wstring widePath = path_.wstring();
+    const std::wstring wideDir = path_.parent_path().wstring();
+
+    // Stage the edit on a private temp file in the same directory (same volume,
+    // so the final move is atomic), then swap it into place. WritePrivateProfile
+    // leaves the [settings] section and any foreign keys/comments untouched.
+    std::array<wchar_t, MAX_PATH> tempPath{};
+    if (GetTempFileNameW(wideDir.c_str(), L"d2b", 0, tempPath.data()) == 0) {
+        return;  // can't stage safely - leave the original untouched
+    }
+
+    const bool originalExists = std::filesystem::exists(path_);
+    if (originalExists && CopyFileW(widePath.c_str(), tempPath.data(), FALSE) == 0) {
+        DeleteFileW(tempPath.data());
+        return;
+    }
+
+    const std::wstring wideSection = utils::ToWStr(section);
+    for (const auto& [key, value] : keyValues) {
+        WritePrivateProfileStringW(wideSection.c_str(), utils::ToWStr(key).c_str(), utils::ToWStr(value).c_str(),
+                                   tempPath.data());
+    }
+    // Flush WritePrivateProfile's per-process cache out to the temp before swap.
+    WritePrivateProfileStringW(nullptr, nullptr, nullptr, tempPath.data());
+
+    for (int32_t attempt = 0; attempt < REPLACE_ATTEMPTS; ++attempt) {
+        const BOOL ok = originalExists ? ReplaceFileW(widePath.c_str(), tempPath.data(), nullptr, 0, nullptr, nullptr)
+                                       : MoveFileExW(tempPath.data(), widePath.c_str(),
+                                                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+        if (ok != 0) {
+            return;
+        }
+        Sleep(REPLACE_RETRY_MS);
+    }
+    DeleteFileW(tempPath.data());  // every attempt failed - leave the original intact
 }
 
 int32_t IniConfigStore::ReadInt(const std::string& section, const std::string& key, int32_t defaultValue) const {

@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ConfigStore.h"
@@ -29,8 +30,11 @@ class IniConfigStore : public ConfigStore {
     // Read a string value from a section/key, returning defaultValue on missing key.
     std::string ReadString(const std::string& section, const std::string& key, const std::string& defaultValue) const;
 
-    // Write a string value to a section/key.
-    void WriteString(const std::string& section, const std::string& key, const std::string& value) const;
+    // Atomically commit a batch of key/value pairs into one section. Serialized
+    // across processes by a shared named mutex and written via a temp file +
+    // atomic replace, so concurrent d2bsng / D2BotNG writers can neither tear
+    // d2bs.ini nor see a half-written profile.
+    void WriteKeys(const std::string& section, const std::vector<std::pair<std::string, std::string>>& keyValues) const;
 
     // Read an integer value from a section/key, returning defaultValue on missing/invalid key.
     int32_t ReadInt(const std::string& section, const std::string& key, int32_t defaultValue) const;
