@@ -18,7 +18,6 @@
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
-#include <D2WinButton.h>   // D2WinButtonStrc (nStringId access)
 #include <D2WinTextBox.h>  // D2WinTextBoxLineStrc (full layout, for pColumns/pNext field access)
 #pragma clang diagnostic pop
 
@@ -104,26 +103,22 @@ Rect Control::Bounds() const {
     return ctrl != nullptr ? ctrl->rect : Rect::Zero;
 }
 
-int32_t Control::State() const {
+// Raw control state (dwState): 0x0D = difficulty button enabled, 0x04 = Bnet
+// diff unavailable, etc. The JS-visible "state" (this minus 2) and "disabled"
+// (raw) views are derived in the bindings.
+uint32_t Control::State() const {
     auto* ctrl = AsCtrl(ResolvePtr());
-    if (ctrl == nullptr) {
-        return 0;
-    }
-    return static_cast<int32_t>(ctrl->dwDisabled) - 2;
+    return ctrl != nullptr ? ctrl->dwState : 0U;
 }
 
-// Reference uses memset(&dwDisabled, value+2, sizeof(DWORD)) which fills 4 bytes
-// with the byte (value+2) - this is a bug: dwDisabled gets 0x02020202 etc.
-// instead of the integer value+2, breaking round-trips with State() which does
-// `dwDisabled - 2`. State() reads dwDisabled as a full uint32, so the integer
-// write below is the only encoding both Read and Write agree on for value in
-// the documented JS-visible range (0..3 -> dwDisabled 2..5).
-void Control::SetState(int32_t value) const {
+// Reference's setter memset's the field with a single repeated byte (buggy:
+// fills 0x0D0D0D0D etc.); write the integer directly so State() round-trips.
+void Control::SetState(uint32_t value) const {
     auto* ctrl = AsCtrl(ResolvePtr());
     if (ctrl == nullptr) {
         return;
     }
-    ctrl->dwDisabled = static_cast<uint32_t>(value + 2);
+    ctrl->dwState = value;
 }
 
 bool Control::IsPassword() const {
@@ -164,29 +159,6 @@ uint32_t Control::SelectEnd() const {
     return ctrl != nullptr ? ctrl->dwSelectEnd : 0U;
 }
 
-// Multi-state sentinel field; 0x0D = difficulty button enabled, 0x04 = Bnet diff unavailable, etc. IsAvailable() gives
-// the boolean view.
-uint32_t Control::Disabled() const {
-    auto* ctrl = AsCtrl(ResolvePtr());
-    return ctrl != nullptr ? ctrl->dwDisabled : 0U;
-}
-
-// Same memset bug as SetState; see SetState comment.
-void Control::SetDisabled(uint32_t value) const {
-    auto* ctrl = AsCtrl(ResolvePtr());
-    if (ctrl == nullptr) {
-        return;
-    }
-    ctrl->dwDisabled = value;
-}
-
-// `nStringId` is at offset 0x270 inside D2WinButtonStrc (D2Win/D2WinButton.h).
-// The game allocates a D2WinButtonStrc-sized buffer for ControlType::Button,
-// so reading past our 0x264-sized shadow into +0x270 is safe when dwType is
-// Button. TextBox controls don't store a locale id - their text is the
-// already-resolved wide string from D2LANG_GetLocaleText.
-static_assert(offsetof(::D2WinButtonStrc, nStringId) == 0x270, "D2WinButtonStrc::nStringId offset drift vs D2MOO");
-
 bool Control::HasLocaleText(int32_t localeId) const {
     if (localeId < 0) {
         return false;
@@ -195,29 +167,24 @@ bool Control::HasLocaleText(int32_t localeId) const {
     if (ctrl == nullptr) {
         return false;
     }
+    const auto* localeText = imports::d2lang::D2LANG_GetLocaleText(static_cast<uint16_t>(localeId));
+    if (localeText == nullptr) {
+        return false;
+    }
+    // Reference findControl: match the resolved locale string against the button's
+    // text (exact), or find it within a textbox's text.
     if (ctrl->dwType == ControlType::Button) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        return reinterpret_cast<const ::D2WinButtonStrc*>(ctrl)->nStringId == localeId;
+        return std::wstring_view{localeText} == std::wstring_view{ctrl->wText2.data()};
     }
     if (ctrl->dwType == ControlType::TextBox) {
-        const auto* localeText = imports::d2lang::D2LANG_GetLocaleText(static_cast<uint16_t>(localeId));
-        if (localeText == nullptr || ctrl->pFirstText == nullptr || ctrl->pFirstText->pColumns[0] == nullptr) {
+        if (ctrl->pFirstText == nullptr || ctrl->pFirstText->pColumns[0] == nullptr) {
             return false;
         }
-        // D2MOO's Unicode is binary-compatible with wchar_t on Win32 (both 16-bit).
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) - D2MOO Unicode is wchar_t on Win32
         const auto* controlText = reinterpret_cast<const wchar_t*>(ctrl->pFirstText->pColumns[0]);
         return std::wstring_view{localeText}.contains(controlText);
     }
     return false;
-}
-
-bool Control::IsAvailable() const {
-    auto* ctrl = AsCtrl(ResolvePtr());
-    if (ctrl == nullptr) {
-        return false;
-    }
-    return ctrl->dwType != ControlType::Button || ctrl->unkState != 1;
 }
 
 Control Control::GetNext() const {

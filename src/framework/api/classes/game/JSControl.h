@@ -124,7 +124,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                 auto* data = MenuOnly(info);
                 if (!data)
                     return;
-                info.GetReturnValue().Set(data->State());
+                info.GetReturnValue().Set(static_cast<int32_t>(data->State()) - 2);
             },
             +[](v8::Local<v8::Name> property, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
                 auto* data = MenuOnly(info);
@@ -139,7 +139,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                     v8_error::ThrowError(isolate, "Invalid state value");
                     return;
                 }
-                data->SetState(state);
+                data->SetState(static_cast<uint32_t>(state + 2));
             });
         /// @description Whether the control is a password (cloaked) input field.
         /// @type {boolean}
@@ -211,7 +211,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                 auto* data = MenuOnly(info);
                 if (!data)
                     return;
-                info.GetReturnValue().Set(static_cast<int32_t>(data->Disabled()));
+                info.GetReturnValue().Set(static_cast<int32_t>(data->State()));
             },
             +[](v8::Local<v8::Name> property, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
                 auto* data = MenuOnly(info);
@@ -222,7 +222,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                 }
                 auto* isolate = info.GetIsolate();
                 uint32_t disabled = v8_convert::ToUint32(isolate, value);
-                data->SetDisabled(disabled);
+                data->SetState(disabled);
             });
 
         // Methods

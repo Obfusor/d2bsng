@@ -39,11 +39,10 @@ enum class OutOfGameLocation : uint32_t {
     CharacterSelect,
     RealmDown,
     Disconnected,
-    // Char-create screen with no class selected yet (ord 15) - the entry
-    // state when the user clicks "Create New Character" from the char-select
-    // screen. Distinct from CharacterCreateClassSelected at ord 29 which is
-    // reached after a class has been picked.
-    CharacterCreate,
+    // Char-create screen with a class picked (ord 15) - the OK button is
+    // visible (dwState 4 = greyed awaiting name, 5 = clickable). Reference
+    // NEW_CHARACTER. The no-class entry screen is CharacterCreate at ord 29.
+    CharacterCreateClassSelected,
     CharacterSelectPleaseWait,
     LostConnection,
     SplashScreen,
@@ -59,10 +58,11 @@ enum class OutOfGameLocation : uint32_t {
     GameAlreadyExists,
     Gateway,
     GameDoesNotExist,
-    // Char-create screen with class selected (ord 29) - user has picked a
-    // class and is entering the name + checkbox options. See CharacterCreate
-    // at ord 15 for the prior state.
-    CharacterCreateClassSelected,
+    // Char-create entry screen, no class picked yet (ord 29) - the OK button
+    // is hidden (dwState 0). Reference CHARACTER_CREATE; the screen reached by
+    // clicking "Create New Character" from char-select. Once a class is picked
+    // it becomes CharacterCreateClassSelected at ord 15.
+    CharacterCreate,
     // Duplicate-name popup when creating a character (ord 30). Reference
     // classifies this via the centered-OK-button pattern; lost-connection,
     // disconnected, and unable-to-connect-TCPIP share the same button but
@@ -90,9 +90,9 @@ enum class OutOfGameLocation : uint32_t {
 static_assert(static_cast<uint32_t>(OutOfGameLocation::PreSplash) == 0);
 static_assert(static_cast<uint32_t>(OutOfGameLocation::MainMenu) == 8);
 static_assert(static_cast<uint32_t>(OutOfGameLocation::Login) == 9);
-static_assert(static_cast<uint32_t>(OutOfGameLocation::CharacterCreate) == 15);
+static_assert(static_cast<uint32_t>(OutOfGameLocation::CharacterCreateClassSelected) == 15);
 static_assert(static_cast<uint32_t>(OutOfGameLocation::SplashScreen) == 18);
-static_assert(static_cast<uint32_t>(OutOfGameLocation::CharacterCreateClassSelected) == 29);
+static_assert(static_cast<uint32_t>(OutOfGameLocation::CharacterCreate) == 29);
 static_assert(static_cast<uint32_t>(OutOfGameLocation::CharacterCreateAlreadyExists) == 30);
 static_assert(static_cast<uint32_t>(OutOfGameLocation::UnableToConnectTcpIp) == 44);
 

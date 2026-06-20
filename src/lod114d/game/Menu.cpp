@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 
 namespace d2bs::game {
 
@@ -26,10 +27,52 @@ namespace {
 
 using std::chrono::steady_clock;
 
-// One reference: a CONTROL_BUTTON dwDisabled value for "selectable" in the
+// One reference: a CONTROL_BUTTON dwState value for "selectable" in the
 // difficulty buttons. 0x0D matches reference Profile.cpp:174-188 (the in-game
 // "enabled" state of normal/nightmare/hell on the SP difficulty screen).
 constexpr uint32_t DIFFICULTY_BUTTON_ENABLED = 0x0D;
+
+// D2 string-table (.tbl) indices passed to Control::Find as its localeId filter,
+// mirroring the reference OOG_GetLocation's per-control labels: the id is
+// resolved to its locale string and matched against the control's text (Button
+// exact, TextBox substring). The few controls the reference matches by rect
+// alone (NULL text) pass no label - those call sites are commented. Values
+// cross-checked against D2MOO's DataTbls/StringIds.h and the string tables;
+// trailing text is the resolved English. Index space by base offset: string.tbl
+// 0, patchstring.tbl 10000, expansionstring.tbl 20000.
+enum class StringId : int32_t {
+    // string.tbl
+    Exit = 5101,                // "EXIT"
+    Ok = 5102,                  // "OK"
+    Cancel = 5103,              // "CANCEL"
+    SinglePlayer = 5106,        // "SINGLE PLAYER"
+    TcpIpGame = 5116,           // "TCP/IP GAME"
+    HostGame = 5118,            // "HOST GAME"
+    JoinGame = 5119,            // "JOIN GAME"
+    GameExistsWithName = 5138,  // "A Game Already Exists With That Name"
+    ServerDown = 5139,          // "Server Down"
+    GameDoesNotExist = 5159,    // "Game does not exist."
+    GameIsFull = 5161,          // "Game is Full."
+    Agree = 5181,               // "AGREE"
+    ModemConnectHelp = 5190,    // "If using a modem, you may need to connect ..."
+    CdKeyInUse = 5200,          // "Your CD key is currently being used by:"
+    VerifyPassword = 5226,      // "Verify Password"
+    PleaseWait = 5243,          // "Please Wait"
+    LogIn = 5288,               // "LOG IN"
+    Help = 5308,                // "HELP"
+    Disconnected = 5347,        // "You were disconnected from battle.net. ..."
+    LostConnection = 5351,      // "Lost Connection to battle.net."
+    // patchstring.tbl (base 10000)
+    Normal = 10018,            // "NORMAL"
+    CreateNew = 10832,         // "CREATE NEW"
+    Connecting = 11065,        // "CONNECTING..."
+    RealmUnavailable = 11066,  // "Diablo II was unable to connect to the realm server ..."
+    Register = 11097,          // "REGISTER"
+    EnterChat = 11126,         // "ENTER CHAT"
+    RealmRestricted = 11162,   // "Your connection has been temporarily restricted ..."
+    // expansionstring.tbl (base 20000)
+    Copyright = 21882,  // " Copyright 2001 Blizzard Entertainment"
+};
 
 imports::extras::D2WinControlStrc* ResolveCtrlPtr(ControlType type, Rect bounds) {
     GameReadLock guard;
@@ -193,7 +236,7 @@ LoginResult Login(const config::ProfileData& profile) {
                     auto hell = Control::Find(ControlType::Button, 264, 383, 272, 35);
 
                     auto clickIfEnabled = [](const std::optional<Control>& c) {
-                        if (!c || c->Disabled() != DIFFICULTY_BUTTON_ENABLED) {
+                        if (!c || c->State() != DIFFICULTY_BUTTON_ENABLED) {
                             return false;
                         }
                         c->Click();
@@ -458,7 +501,7 @@ bool CreateGame(const std::string& name, const std::string& password, Difficulty
             };
             const auto attempt = [](uint32_t x, uint32_t y) -> bool {
                 auto c = Control::Find(ControlType::Button, x, y, 272, 35);
-                if (!c || c->Disabled() != DIFFICULTY_BUTTON_ENABLED) {
+                if (!c || c->State() != DIFFICULTY_BUTTON_ENABLED) {
                     return false;
                 }
                 c->Click();
@@ -496,7 +539,7 @@ bool CreateGame(const std::string& name, const std::string& password, Difficulty
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    // Bnet difficulty radio buttons: distinct dwDisabled value (0x04 means
+    // Bnet difficulty radio buttons: distinct dwState value (0x04 means
     // "unavailable"; anything else is selectable).
     constexpr uint32_t BNET_DIFF_UNAVAILABLE = 0x04;
     const auto pickBnetButton = [](Difficulty d) -> std::optional<Position> {
@@ -515,7 +558,7 @@ bool CreateGame(const std::string& name, const std::string& password, Difficulty
     const bool diffOk = GameThread::Execute([&]() -> bool {
         const auto tryBnet = [](uint32_t x, uint32_t y) -> bool {
             auto c = Control::Find(ControlType::Button, x, y, 16, 16);
-            if (!c || c->Disabled() == BNET_DIFF_UNAVAILABLE) {
+            if (!c || c->State() == BNET_DIFF_UNAVAILABLE) {
                 return false;
             }
             c->Click();
@@ -646,166 +689,197 @@ OutOfGameLocation GetOutOfGameLocation() {
         return OutOfGameLocation::PreSplash;
     }
 
-    auto haveButton = [](uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
-        return Control::Find(ControlType::Button, x, y, w, h).has_value();
-    };
-    auto haveButtonWithLocale = [](int32_t localeId, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
-        return Control::Find(ControlType::Button, x, y, w, h, localeId).has_value();
-    };
-    auto haveTextBox = [](uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
-        return Control::Find(ControlType::TextBox, x, y, w, h).has_value();
-    };
-    auto haveTextBoxWithLocale = [](int32_t localeId, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
-        return Control::Find(ControlType::TextBox, x, y, w, h, localeId).has_value();
-    };
-    auto haveAnyControlExceptControlsByType = [](ControlType t, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
-        return Control::Find(t, x, y, w, h).has_value();
+    // Identify the out-of-game screen by which menu control(s) are present.
+    // Mirrors the reference OOG_GetLocation (reference/d2bs/Control.cpp): the
+    // if / else-if structure and fall-through match it so screens that share a
+    // control rect stay distinguished. findControl is a present-check by type +
+    // rect, with an optional StringId label for the screens that need one to
+    // disambiguate (see the StringId comment for which controls those are); the
+    // rest match on rect alone. namePane and the char-create OK button are read
+    // via Control::Find directly because they need the control, not just presence.
+    auto findControl = [](ControlType type, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+                          std::optional<StringId> label = std::nullopt) {
+        std::optional<int32_t> localeId;
+        if (label) {
+            localeId = std::to_underlying(*label);
+        }
+        return Control::Find(type, x, y, w, h, localeId).has_value();
     };
 
-    // Reference Control.cpp:323-336 - Locale 5102 (OK) at (351,337,96,32) selects
-    // the "OK" button arm; 5103 (Cancel) selects the Cancel arm. The port can now
-    // disambiguate via the new localeId filter on Control::Find.
-    constexpr int32_t LOCALE_OK = 5102;
-    constexpr int32_t LOCALE_CANCEL = 5103;
-
-    if (haveButton(330, 416, 128, 35)) {
+    // "Connecting to Battle.net": a lone Cancel button.
+    if (findControl(ControlType::Button, 330, 416, 128, 35, StringId::Cancel)) {
         return OutOfGameLocation::MainMenuConnecting;
     }
-    if (haveButton(335, 412, 128, 35)) {
+    // Login error popup: a lone OK button.
+    if (findControl(ControlType::Button, 335, 412, 128, 35, StringId::Ok)) {
         return OutOfGameLocation::LoginError;
     }
-    if (haveButtonWithLocale(LOCALE_OK, 351, 337, 96, 32)) {
-        if (haveTextBoxWithLocale(5351, 268, 320, 264, 120)) {
+    // Centered-OK dialog: connection/disconnection notices and the duplicate
+    // character-name popup share this OK button, told apart by their textbox.
+    if (findControl(ControlType::Button, 351, 337, 96, 32, StringId::Ok)) {
+        if (findControl(ControlType::TextBox, 268, 320, 264, 120, StringId::LostConnection)) {
             return OutOfGameLocation::LostConnection;
         }
-        if (haveTextBoxWithLocale(5347, 268, 320, 264, 120)) {
+        if (findControl(ControlType::TextBox, 268, 320, 264, 120, StringId::Disconnected)) {
             return OutOfGameLocation::Disconnected;
         }
-        if (haveAnyControlExceptControlsByType(ControlType::Button, 265, 206, 272, 35)) {
+        // Reference matches any button at the TCP/IP host slot here (no label).
+        if (findControl(ControlType::Button, 265, 206, 272, 35)) {
             return OutOfGameLocation::UnableToConnectTcpIp;
         }
         return OutOfGameLocation::CharacterCreateAlreadyExists;
     }
-    if (haveButtonWithLocale(LOCALE_CANCEL, 351, 337, 96, 32)) {
-        if (haveTextBoxWithLocale(5243, 268, 300, 264, 100)) {
+    // Centered-Cancel dialog: "please wait" overlays (char-select vs lobby).
+    if (findControl(ControlType::Button, 351, 337, 96, 32, StringId::Cancel)) {
+        if (findControl(ControlType::TextBox, 268, 300, 264, 100, StringId::PleaseWait)) {
             return OutOfGameLocation::CharacterSelectPleaseWait;
         }
-        if (haveTextBox(268, 320, 264, 120)) {
+        // Reference matches this textbox by rect alone (no label).
+        if (findControl(ControlType::TextBox, 268, 320, 264, 120)) {
             return OutOfGameLocation::LobbyPleaseWait;
         }
-    }
-    if (haveButton(433, 433, 96, 32)) {
-        if (haveTextBox(427, 234, 300, 100)) {
+    } else if (findControl(ControlType::Button, 433, 433, 96, 32, StringId::Cancel)) {
+        // Battle.net lobby game list (Cancel/back button present). Reference
+        // matches the waiting-in-line textbox by rect alone (no label).
+        if (findControl(ControlType::TextBox, 427, 234, 300, 100)) {
             return OutOfGameLocation::WaitingInLine;
         }
-        if (haveTextBox(459, 380, 150, 12)) {
+        if (findControl(ControlType::TextBox, 459, 380, 150, 12, StringId::Normal)) {
             return OutOfGameLocation::LobbyCreateGame;
         }
-        if (haveButton(594, 433, 172, 32)) {
+        if (findControl(ControlType::Button, 594, 433, 172, 32, StringId::JoinGame)) {
             return OutOfGameLocation::LobbyJoinGame;
         }
-        if (haveButton(671, 433, 96, 32)) {
+        if (findControl(ControlType::Button, 671, 433, 96, 32, StringId::Ok)) {
             return OutOfGameLocation::LobbyChannel;
         }
         return OutOfGameLocation::LobbyLadder;
-    }
-    if (haveButton(33, 572, 128, 35)) {
-        if (haveButton(264, 484, 272, 35)) {
+    } else if (findControl(ControlType::Button, 33, 572, 128, 35, StringId::Exit)) {
+        // Screens with an Exit button at the bottom-left: login, character
+        // select, single-player difficulty, and character create.
+        if (findControl(ControlType::Button, 264, 484, 272, 35, StringId::LogIn)) {
             return OutOfGameLocation::Login;
         }
-        if (haveButton(495, 438, 96, 32)) {
+        if (findControl(ControlType::Button, 495, 438, 96, 32, StringId::Ok)) {
             return OutOfGameLocation::CharacterSelectChangeRealm;
         }
-        if (haveButton(627, 572, 128, 35) && haveButton(33, 528, 168, 60)) {
-            if (haveButton(264, 297, 272, 35)) {
+        // Character-select screen: an OK button plus the "Create New" button.
+        if (findControl(ControlType::Button, 627, 572, 128, 35, StringId::Ok) &&
+            findControl(ControlType::Button, 33, 528, 168, 60, StringId::CreateNew)) {
+            // Single-player difficulty dialog (Normal/Nightmare/Hell buttons).
+            if (findControl(ControlType::Button, 264, 297, 272, 35, StringId::Normal)) {
                 return OutOfGameLocation::SelectDifficultySinglePlayer;
             }
+            // Name pane with >= 2 text lines (reference: pFirstText->pNext) means
+            // characters are listed. Reference matches it by rect alone (no label).
             auto namePane = Control::Find(ControlType::TextBox, 37, 178, 200, 92);
-            if (namePane) {
-                const auto lines = namePane->TextLines();
-                if (lines.size() >= 2) {
-                    return OutOfGameLocation::CharacterSelect;
-                }
+            if (namePane && namePane->TextLines().size() >= 2) {
+                return OutOfGameLocation::CharacterSelect;
             }
-            if (haveTextBox(45, 318, 531, 140)) {
+            // Same rect, different message: realm unavailable / restricted vs the
+            // "connecting" notice - disambiguated by the textbox's locale text.
+            if (findControl(ControlType::TextBox, 45, 318, 531, 140, StringId::RealmUnavailable) ||
+                findControl(ControlType::TextBox, 45, 318, 531, 140, StringId::RealmRestricted)) {
                 return OutOfGameLocation::RealmDown;
             }
-            if (haveTextBox(45, 318, 531, 140)) {
+            if (findControl(ControlType::TextBox, 45, 318, 531, 140, StringId::Connecting)) {
                 return OutOfGameLocation::Connecting;
             }
             return OutOfGameLocation::CharacterSelectNoChars;
         }
-        if (haveButton(33, 572, 128, 35)) {
-            if (auto okBtn = Control::Find(ControlType::Button, 627, 572, 128, 35);
-                okBtn && okBtn->Disabled() == 0 && okBtn->IsAvailable()) {
-                return OutOfGameLocation::CharacterCreateClassSelected;
+        if (findControl(ControlType::Button, 33, 572, 128, 35, StringId::Exit)) {
+            // Char-create OK button dwState: 0 = hidden (no class picked), 4 =
+            // greyed (class picked, no name), 5 = clickable. Hidden is the entry
+            // screen (reference CHARACTER_CREATE); any visible state means a class
+            // is picked. New-account's OK is visible (5), so its verify-password
+            // textbox is checked after this miss.
+            if (auto okBtn = Control::Find(ControlType::Button, 627, 572, 128, 35, std::to_underlying(StringId::Ok));
+                okBtn && okBtn->State() == 0) {
+                return OutOfGameLocation::CharacterCreate;
             }
-            if (haveTextBox(321, 448, 300, 32)) {
+            if (findControl(ControlType::TextBox, 321, 448, 300, 32, StringId::VerifyPassword)) {
                 return OutOfGameLocation::NewAccount;
             }
-            return OutOfGameLocation::CharacterCreate;
+            return OutOfGameLocation::CharacterCreateClassSelected;
         }
     }
-    if (haveButton(335, 450, 128, 35)) {
-        if (haveTextBox(162, 270, 477, 50)) {
+
+    // CD-key / connection error dialog (OK button), told apart by the textbox.
+    if (findControl(ControlType::Button, 335, 450, 128, 35, StringId::Ok)) {
+        if (findControl(ControlType::TextBox, 162, 270, 477, 50, StringId::CdKeyInUse)) {
             return OutOfGameLocation::CDKeyInUse;
         }
-        if (haveTextBox(162, 420, 477, 100)) {
+        if (findControl(ControlType::TextBox, 162, 420, 477, 100, StringId::ModemConnectHelp)) {
             return OutOfGameLocation::UnableToConnect;
         }
         return OutOfGameLocation::InvalidCDKey;
     }
-    if (haveTextBoxWithLocale(5159, 438, 300, 326, 150)) {
+    // Game-listing result popups (438,300 textbox), distinguished by message.
+    if (findControl(ControlType::TextBox, 438, 300, 326, 150, StringId::GameDoesNotExist)) {
         return OutOfGameLocation::GameDoesNotExist;
     }
-    if (haveTextBoxWithLocale(5161, 438, 300, 326, 150)) {
+    if (findControl(ControlType::TextBox, 438, 300, 326, 150, StringId::GameIsFull)) {
         return OutOfGameLocation::GameIsFull;
     }
-    if (haveTextBoxWithLocale(5138, 438, 300, 326, 150)) {
+    if (findControl(ControlType::TextBox, 438, 300, 326, 150, StringId::GameExistsWithName)) {
         return OutOfGameLocation::GameAlreadyExists;
     }
-    if (haveTextBoxWithLocale(5139, 438, 300, 326, 150)) {
+    if (findControl(ControlType::TextBox, 438, 300, 326, 150, StringId::ServerDown)) {
         return OutOfGameLocation::ServerDown;
     }
-    if (haveButton(264, 324, 272, 35)) {
+    // Main menu: "SINGLE PLAYER" button.
+    if (findControl(ControlType::Button, 264, 324, 272, 35, StringId::SinglePlayer)) {
         return OutOfGameLocation::MainMenu;
     }
-    if (haveButton(27, 480, 120, 20)) {
+    // Battle.net lobby: "ENTER CHAT" button.
+    if (findControl(ControlType::Button, 27, 480, 120, 20, StringId::EnterChat)) {
         return OutOfGameLocation::Lobby;
     }
-    if (haveButton(187, 470, 80, 20)) {
+    // Chat room: "HELP" button.
+    if (findControl(ControlType::Button, 187, 470, 80, 20, StringId::Help)) {
         return OutOfGameLocation::LobbyChat;
     }
-    if (haveTextBox(100, 580, 600, 80)) {
+    // Splash screen: the copyright textbox.
+    if (findControl(ControlType::TextBox, 100, 580, 600, 80, StringId::Copyright)) {
         return OutOfGameLocation::SplashScreen;
     }
-    if (haveButton(281, 538, 96, 32)) {
+    // Gateway selection: OK button.
+    if (findControl(ControlType::Button, 281, 538, 96, 32, StringId::Ok)) {
         return OutOfGameLocation::Gateway;
     }
-    if (haveButtonWithLocale(5102, 525, 513, 128, 35)) {
-        return OutOfGameLocation::PleaseRead;
-    }
-    if (haveButtonWithLocale(5181, 525, 513, 128, 35)) {
+    // Terms of use: "AGREE" and "please read" (OK) share this rect, so both
+    // dialog buttons need their label.
+    if (findControl(ControlType::Button, 525, 513, 128, 35, StringId::Agree)) {
         return OutOfGameLocation::AgreeToTerms;
     }
-    if (haveButton(265, 527, 272, 35)) {
+    if (findControl(ControlType::Button, 525, 513, 128, 35, StringId::Ok)) {
+        return OutOfGameLocation::PleaseRead;
+    }
+    // Register email: "REGISTER" button.
+    if (findControl(ControlType::Button, 265, 527, 272, 35, StringId::Register)) {
         return OutOfGameLocation::RegisterEmail;
     }
-    if (haveButton(33, 578, 128, 35)) {
+    // Credits: Exit button at a distinct rect.
+    if (findControl(ControlType::Button, 33, 578, 128, 35, StringId::Exit)) {
         return OutOfGameLocation::Credits;
     }
-    if (haveButton(334, 488, 128, 35)) {
+    // Cinematics: Cancel button.
+    if (findControl(ControlType::Button, 334, 488, 128, 35, StringId::Cancel)) {
         return OutOfGameLocation::Cinematics;
     }
-    if (haveButton(264, 350, 272, 35)) {
+    // Other Multiplayer: "TCP/IP GAME" button.
+    if (findControl(ControlType::Button, 264, 350, 272, 35, StringId::TcpIpGame)) {
         return OutOfGameLocation::OtherMultiplayer;
     }
-    if (haveButton(281, 337, 96, 32)) {
+    // Enter IP address: Cancel button.
+    if (findControl(ControlType::Button, 281, 337, 96, 32, StringId::Cancel)) {
         return OutOfGameLocation::EnterIpAddress;
     }
-    if (haveButton(265, 206, 272, 35)) {
+    // TCP/IP host/join chooser: "HOST GAME" button.
+    if (findControl(ControlType::Button, 265, 206, 272, 35, StringId::HostGame)) {
         return OutOfGameLocation::TcpIp;
     }
+
     return OutOfGameLocation::PreSplash;
 }
 

@@ -24,7 +24,7 @@ namespace d2bs::imports::extras {
 struct D2WinControlStrc {
     d2bs::game::ControlType dwType;  // 0x00
     uint32_t* _1;                    // 0x04 - ptr, usually points to 6 when dwType is 6
-    uint32_t dwDisabled;             // 0x08
+    uint32_t dwState;                // 0x08
     d2bs::game::Rect rect;           // 0x0C - origin.x@+0, origin.y@+4, size.width@+8, size.height@+C
     // Handler table (_2 through _9)
     uint32_t* _2;                         // 0x1C - some sort of function (maybe click?)
@@ -58,7 +58,7 @@ struct D2WinControlStrc {
 
 static_assert(sizeof(D2WinControlStrc) == 0x264, "D2WinControlStrc must be 0x264 bytes");
 static_assert(offsetof(D2WinControlStrc, dwType) == 0x00, "D2WinControlStrc::dwType offset drift");
-static_assert(offsetof(D2WinControlStrc, dwDisabled) == 0x08, "D2WinControlStrc::dwDisabled offset drift");
+static_assert(offsetof(D2WinControlStrc, dwState) == 0x08, "D2WinControlStrc::dwState offset drift");
 static_assert(offsetof(D2WinControlStrc, rect) == 0x0C, "D2WinControlStrc::rect offset drift");
 static_assert(offsetof(D2WinControlStrc, pNext) == 0x3C, "D2WinControlStrc::pNext offset drift");
 static_assert(offsetof(D2WinControlStrc, unkState) == 0x44, "D2WinControlStrc::unkState offset drift");
