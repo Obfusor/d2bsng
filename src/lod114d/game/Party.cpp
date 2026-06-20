@@ -45,7 +45,9 @@ Party Party::FromPtr(void* p) {
     if (p == nullptr) {
         return Party();
     }
-    return Party(AsRoster(p)->dwUnitId);
+    Party handle(AsRoster(p)->dwUnitId);
+    handle.cache_.Set(p);
+    return handle;
 }
 
 Position Party::Pos() const {

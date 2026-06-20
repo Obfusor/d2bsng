@@ -63,8 +63,10 @@ Room Room::FromPtr(void* p) {
     auto* drlgRoom = AsDrlgRoom(p);
     if (drlgRoom->pLevel == nullptr)
         return Room();
-    return Room(static_cast<uint32_t>(drlgRoom->pLevel->nLevelId),
+    Room handle(static_cast<uint32_t>(drlgRoom->pLevel->nLevelId),
                 {.x = static_cast<uint32_t>(drlgRoom->nTileXPos), .y = static_cast<uint32_t>(drlgRoom->nTileYPos)});
+    handle.cache_.Set(p);
+    return handle;
 }
 
 int32_t Room::Number() const {

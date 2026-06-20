@@ -73,7 +73,9 @@ Control Control::FromPtr(void* p) {
         return Control{};
     }
     auto* ctrl = AsCtrl(p);
-    return Control{ctrl->dwType, ctrl->rect};
+    Control handle{ctrl->dwType, ctrl->rect};
+    handle.cache_.Set(p);
+    return handle;
 }
 
 std::string Control::Text() const {
