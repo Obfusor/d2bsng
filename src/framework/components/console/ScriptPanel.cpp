@@ -303,7 +303,7 @@ void DrawTotalsRow(const std::vector<std::shared_ptr<d2bs::Script>>& scripts, co
 }  // namespace
 
 void ScriptPanel::Draw() {
-    const auto scripts = d2bs::ScriptEngine::Instance().GetAllScripts();
+    auto scripts = d2bs::ScriptEngine::Instance().GetAllScripts();
     if (scripts.empty()) {
         ImGui::TextDisabled("No scripts running.");
         return;
@@ -327,6 +327,7 @@ void ScriptPanel::Draw() {
     HeapTotals heapTotals;
     int64_t totalObjects = 0;
     d2bs::api::ClassCountMap mergedObjects;
+    std::ranges::sort(scripts, {}, [](const auto& script) { return script->GetName(); });
     for (size_t i = 0; i < scripts.size(); ++i) {
         DrawScriptRow(i, scripts[i], heapTotals, totalObjects, mergedObjects);
     }
