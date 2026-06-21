@@ -26,6 +26,12 @@
 // NOLINTNEXTLINE(readability-identifier-naming) - CRT-defined symbol name
 extern "C" ULONG _tls_index;
 
+// Linker-defined symbol whose address IS this module's PE base, so
+// &__ImageBase equals our own HMODULE. The VEH uses it to tell faults in our
+// DLL (which statically links V8) apart from faults in foreign modules.
+// NOLINTNEXTLINE(readability-identifier-naming) - linker-defined symbol name
+extern "C" IMAGE_DOS_HEADER __ImageBase;
+
 namespace d2bs::thread_utils {
 
 bool HasThreadLocalStorage() noexcept {
@@ -485,22 +491,37 @@ LONG WINAPI VectoredExceptionHandler(PEXCEPTION_POINTERS exceptionInfo) {
     constexpr DWORD NT_ERROR_SEVERITY_MASK = 0xC0000000U;
     const bool isError = (code & NT_ERROR_SEVERITY_MASK) == NT_ERROR_SEVERITY_MASK;
     const bool isAv = (code == EXCEPTION_ACCESS_VIOLATION);
-    if (isError && !isAv) {
+
+    // Only hard-terminate when the fault originates in code we own: our DLL
+    // (&__ImageBase, which statically links V8) or the game's main module. An
+    // error-severity fault inside a foreign module - e.g. an obfuscated
+    // third-party loader that deliberately raises and then catches its own
+    // illegal-/privileged-instruction exceptions as control flow - is left to
+    // propagate so that module's own __except / VEH gets its turn. A genuinely
+    // unhandled foreign fault still reaches our SetUnhandledExceptionFilter
+    // backstop on the second chance, so we don't lose real crashes. A fault in
+    // unknown memory (expModule == nullptr, e.g. a V8 JIT code page) counts as
+    // "not ours" and propagates too.
+    const auto ourModule = reinterpret_cast<HMODULE>(&__ImageBase);
+    const auto gameModule = GetModuleHandleA(nullptr);
+    const bool faultInOurCode = expModule != nullptr && (expModule == ourModule || expModule == gameModule);
+
+    if (isError && !isAv && faultInOurCode) {
         CrashAndExit(msg, code);
     }
 
 #ifdef D2BSNG_HANG_ON_CRASH
-    // Debug mode: also terminate on AV so V8 / D2 __try blocks never get
-    // a turn. Without this, V8's StackDumpExceptionFilter or D2's own
-    // __except absorbs the AV and runs ExitProcess from inside Game.exe,
-    // burying the actual fault site. Production builds (no define) keep
-    // propagating because V8 raises legitimate first-chance AVs.
-    CrashAndExit(msg, code);
+    // Debug mode: also terminate on AV (which normally propagates) so V8 / D2
+    // __try blocks never get a turn and bury the fault site. Same module gate as
+    // above - foreign-module faults still propagate so their own handlers run.
+    if (faultInOurCode) {
+        CrashAndExit(msg, code);
+    }
 #endif
 
-    // First-chance AV (propagating path): persist a best-effort dump so we
-    // have a record if downstream handlers (V8 UEF, D2 __try) swallow it
-    // and call ExitProcess before our SEH UEF gets a turn.
+    // Propagating path - a first-chance AV, or any fault in a foreign module:
+    // persist a best-effort record in case a downstream handler swallows it and
+    // calls ExitProcess before our SEH UEF gets a turn.
     WriteCrashLog(msg);
     spdlog::warn(msg);
     return EXCEPTION_CONTINUE_SEARCH;
