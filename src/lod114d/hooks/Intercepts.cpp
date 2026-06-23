@@ -34,9 +34,21 @@
 //   ClassicCDKey           0x52366C  JMP/5   A3 44 27 88 00        mov [ClassicKey], eax
 //   LodCDKey               0x523958  JMP/5   A3 4C 27 88 00        mov [XPacKey], eax
 //
-// All 15 installed sites verified; bytes match reference's expected shape.
-// Patch P20 (no-op-without-replacement) and P6/P10/P11/P12/P13 explicitly
-// skipped.
+// d2bsng additions (not in reference/d2bs/Patch.h; recovered from
+// D2BS.dll and re-verified against 1.14d Game.exe). Both target
+// the Battle.net "download-and-run a DLL" machinery:
+//
+//   RequiredWork (uncond)  0x11C7AF  CALL/5  E8 4C 53 00 00        -> SID pkt handler
+//   TempPathPerInstance    0x11E4C4  CALL/6  FF 15 44 C3 6C 00     IAT GetTempPathA
+//
+// RequiredWork suppresses SID_REQUIREDWORK (0x4C) so a server can't make the
+// client download and run an extra-work DLL; it is unconditional (reference
+// parity). TempPathPerInstance redirects NET_CopyDllFromArchive's extraction
+// into a per-instance %TEMP% subdir and installs only under -multi.
+//
+// All 15 reference-derived sites verified; bytes match reference's expected
+// shape. Patch P20 (no-op-without-replacement) and P6/P10/P11/P12/P13
+// explicitly skipped.
 // =============================================================================
 
 #include "hooks/Intercepts.h"
@@ -86,6 +98,9 @@ uintptr_t congratsScreen = 0;
 uintptr_t channelInput = 0;
 uintptr_t drawSprites = 0;
 uintptr_t d2gameExit0 = 0;
+// Tail-jump target for the SID_REQUIREDWORK suppression thunk: the original
+// NET_SID_CLIENT_IncomingPacketHandler the patched call at 0x11C7AF wrapped.
+uintptr_t sidPacketHandler = 0;
 
 // Tail-jump targets and snapshotted slot/string pointers for the
 // Conditional[] CDKey intercepts. Snapshotted in Init() so the naked
@@ -108,8 +123,12 @@ SiteState siteP1, siteP2, siteP3, siteP4, siteP5;
 SiteState siteP8, siteP9, siteP14, siteP15, siteP16;
 SiteState siteP17, siteP18, siteP19, siteP21, siteP22;
 
+// d2bsng addition - unconditional SID_REQUIREDWORK (0x4C) suppression.
+SiteState siteRequiredWork;
+
 // Conditional[] sites - installed only when their LaunchOptions toggle is set.
-SiteState siteBypassMultiInstance, siteCreateWindowTitled;
+// siteTempPathPerInstance is a d2bsng addition gated on -multi (multiInstance).
+SiteState siteBypassMultiInstance, siteCreateWindowTitled, siteTempPathPerInstance;
 SiteState siteBnetCache1, siteBnetCache2;
 SiteState siteClassicCdKey, siteLodCdKey, siteFailToJoinBackoff;
 
@@ -135,6 +154,11 @@ constexpr uint32_t P19_RVA = 0x4B1AE;
 constexpr uint32_t P21_RVA = 0x82E0;
 constexpr uint32_t P22_RVA = 0x1790;
 
+// d2bsng addition: unconditional SID_REQUIREDWORK (0x4C) suppression. Patches
+// the `call NET_SID_CLIENT_IncomingPacketHandler` site inside the BNCS
+// incoming-packet loop. Site bytes: E8 4C 53 00 00 (CALL/5).
+constexpr uint32_t REQUIRED_WORK_RVA = 0x11C7AF;
+
 // Conditional[] sites. CALL sites are 6 bytes (original `FF 15 imm32` IAT
 // indirect calls / `81 FE imm32` CMP); we replace each with a 5-byte
 // `E8 rel32` plus one trailing NOP. JMP sites are 5 bytes (original
@@ -146,6 +170,11 @@ constexpr uint32_t BNET_CACHE_2_RVA = 0x119434;
 constexpr uint32_t CLASSIC_CDKEY_RVA = 0x12366C;
 constexpr uint32_t LOD_CDKEY_RVA = 0x123958;
 constexpr uint32_t FAIL_TO_JOIN_BACKOFF_RVA = 0x4EF28;
+
+// d2bsng addition: per-instance temp dir for the downloaded Bnet check-revision
+// DLL (installed under -multi). Patches the `call ds:GetTempPathA` inside
+// NET_CopyDllFromArchive. Site bytes: FF 15 44 C3 6C 00 (CALL/6 IAT indirect).
+constexpr uint32_t TEMP_PATH_PER_INSTANCE_RVA = 0x11E4C4;
 
 // =============================================================================
 // C-side callback dispatchers
@@ -462,6 +491,60 @@ extern "C" HANDLE __stdcall OpenPerInstanceBnetCache(LPCSTR /*fileName*/, DWORD 
                          flagsAndAttributes, templateFile);
 }
 
+// d2bsng addition (installed under -multi): derive a per-instance, filesystem-
+// safe subdirectory name for the Bnet DLL extraction temp path. Prefers the
+// launch profile, falls back to the window title, then the pid. Sanitised to
+// [A-Za-z0-9_-] and length-capped. The reference build hashed the profile
+// name (MD5); we use a readable name instead - the goal is only uniqueness
+// across concurrent instances.
+std::string PerInstanceTempKey() {
+    const auto& opts = game::GetLaunchOptions();
+    std::string key = opts.profile.has_value() && !opts.profile->empty() ? *opts.profile : ReadWindowTitle();
+
+    constexpr size_t MAX_KEY = 32;
+    std::string safe;
+    for (const char c : key) {
+        const bool ok =
+            (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == '-';
+        if (ok) {
+            safe += c;
+        }
+        if (safe.size() >= MAX_KEY) {
+            break;
+        }
+    }
+    if (safe.empty()) {
+        safe = std::format("pid{}", GetCurrentProcessId());
+    }
+    return "d2bs-" + safe;
+}
+
+// Replaces the `call ds:GetTempPathA` inside NET_CopyDllFromArchive. That
+// routine extracts the Battle.net check-revision DLL from an MPQ into
+// GetTempPathA() and loads it; two clients sharing one %TEMP% would race on
+// the same file. We append a per-instance subdirectory and create it, so each
+// instance extracts into its own folder. The signature matches GetTempPathA
+// (the IAT call we replace) so the stack stays balanced; on any failure we
+// leave the stock %TEMP% path GetTempPathA already wrote.
+extern "C" DWORD __stdcall GetTempPathPerInstance(DWORD nBufferLength, LPSTR lpBuffer) {
+    const DWORD baseLen = ::GetTempPathA(nBufferLength, lpBuffer);
+    if (baseLen == 0 || lpBuffer == nullptr) {
+        return baseLen;
+    }
+    try {
+        const std::string full = std::string{lpBuffer, baseLen} + PerInstanceTempKey() + "\\";
+        if (full.size() + 1 > nBufferLength) {
+            return baseLen;  // no room - keep the stock temp path
+        }
+        std::memcpy(lpBuffer, full.c_str(), full.size() + 1);
+        ::CreateDirectoryA(lpBuffer, nullptr);
+        return static_cast<DWORD>(full.size());
+    } catch (...) {
+        // lpBuffer still holds the stock %TEMP% GetTempPathA wrote above.
+        return baseLen;
+    }
+}
+
 // P22: ErrorReportLaunch - D2's own crash path. Called when D2 has decided
 // it's about to terminate (typically after its own __try/__except caught
 // something our SetUnhandledExceptionFilter never sees). This is our most
@@ -733,6 +816,29 @@ Block:
     }
 }
 
+// d2bsng addition (unconditional): suppress Battle.net SID_REQUIREDWORK
+// (message id 0x4C). The patched call site in the BNCS incoming-packet loop
+// (0x11C7AF) hands the dispatcher its message id in ecx (low byte = id; the
+// upper bits are the packet length's high byte). When the id is 0x4C we zero
+// ecx so NET_SID_CLIENT_IncomingPacketHandler dispatches handler-table slot 0
+// (NET_SID_CLIENT_IncomingReturn, a no-op stub) instead of the RequiredWork
+// handler that would download and run a server-supplied DLL. Every other
+// packet falls straight through to the original handler untouched.
+//
+// `cmp ecx, 0x4C` over the full register is verbatim from the reference build:
+// a RequiredWork packet is well under 256 bytes, so its length high byte is 0
+// and the compare reduces to the id. We keep the reference shape (rather than
+// `cmp cl, 0x4C`) for parity.
+extern "C" __declspec(naked) void RequiredWorkThunk() {
+    __asm {
+        cmp ecx, 0x4C
+        jne Pass
+        xor ecx, ecx
+Pass:
+        jmp dword ptr [sidPacketHandler]
+    }
+}
+
 // P21: D2GAME_exit0 redirect. Original is the function entry of a Fog
 // fatal-error helper at 0x4082E0. We redirect to D2GAME's exit0 at 0x40576F.
 extern "C" __declspec(naked) void D2GAMEExit0Thunk() {
@@ -835,7 +941,7 @@ bool Init() {
         const wchar_t* name;
         bool resolved;
     };
-    const std::array<Probe, 11> probes = {{
+    const std::array<Probe, 12> probes = {{
         {.name = L"D2CLIENT InputCall_I", .resolved = imports::d2client::InputCall_I.IsResolved()},
         {.name = L"D2NET ReceivePacket_I", .resolved = imports::d2net::CLIENT_ReceivePacket_I.IsResolved()},
         {.name = L"D2CLIENT SendPacket_II", .resolved = imports::d2client::SendPacket_II.IsResolved()},
@@ -847,6 +953,8 @@ bool Init() {
         {.name = L"BNCLIENT DLod", .resolved = imports::bnclient::DLod.IsResolved()},
         {.name = L"BNCLIENT ClassicKey", .resolved = imports::bnclient::gpszClassicCdKey.IsResolved()},
         {.name = L"BNCLIENT XPacKey", .resolved = imports::bnclient::gpszExpansionCdKey.IsResolved()},
+        {.name = L"BNCLIENT SID_CLIENT_IncomingPacketHandler",
+         .resolved = imports::bnclient::SID_CLIENT_IncomingPacketHandler.IsResolved()},
     }};
     for (const auto& p : probes) {
         if (!p.resolved) {
@@ -864,6 +972,7 @@ bool Init() {
     channelInput = imports::d2multi::ChannelInput_I.Addr();
     drawSprites = reinterpret_cast<uintptr_t>(imports::d2win::D2WIN_DrawSprites.Ptr());
     d2gameExit0 = reinterpret_cast<uintptr_t>(imports::d2game::D2GAME_Exit.Ptr());
+    sidPacketHandler = imports::bnclient::SID_CLIENT_IncomingPacketHandler.Addr();
 
     bnclientDClass = imports::bnclient::DClass.Addr();
     bnclientDLod = imports::bnclient::DLod.Addr();
@@ -908,6 +1017,9 @@ void InstallAll() {
     InstallSite(siteP21, P21_RVA, &D2GAMEExit0Thunk, 6, /*isJmp=*/true);
     InstallSite(siteP22, P22_RVA, reinterpret_cast<void (*)()>(&OnErrorReportLaunch), 6, /*isJmp=*/true);
 
+    // d2bsng addition (unconditional, reference parity): suppress SID_REQUIREDWORK.
+    InstallSite(siteRequiredWork, REQUIRED_WORK_RVA, &RequiredWorkThunk, 5, /*isJmp=*/false);
+
     // Conditional[] sites - each gated on its LaunchOptions toggle.
     const auto& opts = game::GetLaunchOptions();
 
@@ -916,6 +1028,9 @@ void InstallAll() {
                     reinterpret_cast<void (*)()>(&BypassMultiInstanceCheck), 6, /*isJmp=*/false);
         InstallSite(siteCreateWindowTitled, CREATE_WINDOW_TITLED_RVA,
                     reinterpret_cast<void (*)()>(&CreateGameWindowWithTitle), 6, /*isJmp=*/false);
+        // d2bsng addition: per-instance temp dir for the extracted Bnet DLL.
+        InstallSite(siteTempPathPerInstance, TEMP_PATH_PER_INSTANCE_RVA,
+                    reinterpret_cast<void (*)()>(&GetTempPathPerInstance), 6, /*isJmp=*/false);
     }
     if (opts.randomizeBnetCache) {
         InstallSite(siteBnetCache1, BNET_CACHE_1_RVA, reinterpret_cast<void (*)()>(&OpenPerInstanceBnetCache), 6,
@@ -960,9 +1075,11 @@ void RemoveAll() {
     RestoreSite(siteFailToJoinBackoff, FAIL_TO_JOIN_BACKOFF_RVA, 6);
     RestoreSite(siteBnetCache2, BNET_CACHE_2_RVA, 6);
     RestoreSite(siteBnetCache1, BNET_CACHE_1_RVA, 6);
+    RestoreSite(siteTempPathPerInstance, TEMP_PATH_PER_INSTANCE_RVA, 6);
     RestoreSite(siteCreateWindowTitled, CREATE_WINDOW_TITLED_RVA, 6);
     RestoreSite(siteBypassMultiInstance, BYPASS_MULTI_INSTANCE_RVA, 6);
 
+    RestoreSite(siteRequiredWork, REQUIRED_WORK_RVA, 5);
     RestoreSite(siteP22, P22_RVA, 6);
     RestoreSite(siteP21, P21_RVA, 6);
     // P20 not installed - no restore needed.

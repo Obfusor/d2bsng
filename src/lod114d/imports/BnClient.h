@@ -24,5 +24,12 @@ inline GameVar<char*> gpszKeyOwner{0x482750};
 inline GameAsmFunc DClass{0x123673};
 inline GameAsmFunc DLod{0x12395D};
 
+// Tail-jump target for the SID_REQUIREDWORK (0x4C) suppression intercept
+// (RequiredWorkThunk @ site 0x11C7AF): the original
+// NET_SID_CLIENT_IncomingPacketHandler the patched `call` would have invoked.
+// The thunk zeroes the message id when it is 0x4C, then jumps here so every
+// other Battle.net packet dispatches normally.
+inline GameAsmFunc SID_CLIENT_IncomingPacketHandler{0x121B00};
+
 }  // namespace d2bs::imports::bnclient
 // NOLINTEND(readability-identifier-naming)
