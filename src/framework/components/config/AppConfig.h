@@ -79,6 +79,24 @@ struct AppConfig {
     std::chrono::milliseconds gameReadyTimeout{5000};  // for WaitForGameReady (INI value is seconds)
     size_t memoryLimit = 100 * 1024 * 1024;            // bytes, V8 heap limit (INI value is MB)
 
+    // Extra V8 flags (INI [settings]/V8Flags) applied via SetFlagsFromString at
+    // engine init. Read once in V8Host's constructor.
+    std::string v8Flags;
+
+    // V8 default-platform worker pool size (INI [settings]/V8ThreadPoolSize, 0 =
+    // auto from CPU count, clamped [0, 64]). Ignored when v8SingleThreadedPlatform.
+    int32_t v8ThreadPoolSize = 0;
+
+    // Use V8's single-threaded platform (no worker pool) instead of the default
+    // (INI [settings]/V8SingleThreadedPlatform). Forces the --single-threaded V8
+    // flag that platform requires.
+    bool v8SingleThreadedPlatform = false;
+
+    // Real-wall granularity (ms) of the idle script / game-loop wait loops (INI
+    // [settings]/IdleSleepIntervalMs, clamped [1, 100]). Larger = lower idle CPU,
+    // coarser servicing.
+    std::chrono::milliseconds idleSleepInterval{1};
+
     // Active profile name (set when login() is called, read by me.profile).
     // Names are normalized to lowercase on Set (matches reference's
     // GetPrivateProfileStringW case-insensitive section lookup) so internal

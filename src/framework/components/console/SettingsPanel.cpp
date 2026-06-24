@@ -273,6 +273,15 @@ void SettingsPanel::Draw() {
             ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
             DisplayRow("Game-ready timeout", "%lld ms", static_cast<long long>(config.gameReadyTimeout.count()));
             DisplayRow("Memory limit", "%zu MB", config.memoryLimit / (1024UL * 1024UL));
+            DisplayRow("Idle sleep interval", "%lld ms", static_cast<long long>(config.idleSleepInterval.count()));
+            DisplayRow("V8 flags", "%s", config.v8Flags.empty() ? "(none)" : config.v8Flags.c_str());
+            if (config.v8SingleThreadedPlatform) {
+                DisplayRow("V8 platform", "%s", "single-threaded (no pool)");
+            } else if (config.v8ThreadPoolSize == 0) {
+                DisplayRow("V8 platform", "%s", "default, auto thread pool");
+            } else {
+                DisplayRow("V8 platform", "default, %d thread(s)", config.v8ThreadPoolSize);
+            }
             const auto paths = config.GetScriptPaths();
             DisplayRow("Script base", "%s", paths.basePath.string().c_str());
             DisplayRow("Game script", "%s", paths.gameScript.c_str());

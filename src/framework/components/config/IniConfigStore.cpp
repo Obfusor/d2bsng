@@ -65,6 +65,14 @@ void IniConfigStore::LoadSettings(AppConfig& config) {
     config.inspectorPort.store(inspectorPort);
     config.gameReadyTimeout = std::chrono::milliseconds{ReadInt("settings", "GameReadyTimeout", 5) * 1000};
     config.memoryLimit = static_cast<size_t>(ReadInt("settings", "MemoryLimit", 100)) * 1024 * 1024;
+    // Extra V8 flags for SetFlagsFromString (e.g. "--max-old-space-size=512").
+    config.v8Flags = ReadString("settings", "V8Flags", "");
+    // V8 default-platform worker pool size; 0 = auto, clamped to [0, 64].
+    config.v8ThreadPoolSize = std::clamp(ReadInt("settings", "V8ThreadPoolSize", 0), 0, 64);
+    config.v8SingleThreadedPlatform = ReadBool("settings", "V8SingleThreadedPlatform", false);
+    // Idle-sleep granularity (ms), clamped to [1, 100] (0 would busy-spin).
+    config.idleSleepInterval =
+        std::chrono::milliseconds{std::clamp(ReadInt("settings", "IdleSleepIntervalMs", 1), 1, 100)};
     // Unlike the other atomic fields above, `speed` is not written via
     // .store() directly: speedhack::SetSpeed re-anchors the time-domain bases
     // before publishing the new value to AppConfig.speed, which is required

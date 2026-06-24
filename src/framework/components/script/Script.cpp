@@ -792,15 +792,18 @@ void Script::ExecuteEvents(std::chrono::milliseconds duration) {
     auto* platform = V8Host::GetPlatform();
     auto stopToken = thread_.get_stop_token();
 
+    // Idle-wait granularity (INI IdleSleepIntervalMs): wall-ms slept per idle pass.
+    const auto idleSleep = config::GetAppConfig().idleSleepInterval;
+
     // When paused, sleep without processing events.
     while (state_.load() == ScriptState::Paused && !stopToken.stop_requested()) {
         speedhack::SpeedhackDisabledScope realWaits;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(idleSleep);
     }
 
     auto deadline = std::chrono::steady_clock::now() + duration;
-    // Slice wait: real 1ms wall sleep while the remaining virtual budget
-    // is at least 1ms wall (= `speed` ms virtual); yield once we'd overshoot.
+    // Slice wait: real idleSleep-ms wall sleeps while >=1ms wall of budget
+    // remains, else yield. A large IdleSleepIntervalMs coarsens the deadline re-check.
     const float speed = speedhack::GetSpeed();
     do {  // NOLINT(cppcoreguidelines-avoid-do-while) - must process events before checking deadline
         while (v8::platform::PumpMessageLoop(platform, iso)) {}
@@ -824,7 +827,7 @@ void Script::ExecuteEvents(std::chrono::milliseconds duration) {
             std::this_thread::yield();
         } else {
             speedhack::SpeedhackDisabledScope realWaits;
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(idleSleep);
         }
     } while (state_.load() == ScriptState::Running && !stopToken.stop_requested() &&
              std::chrono::steady_clock::now() < deadline &&

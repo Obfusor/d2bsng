@@ -125,11 +125,11 @@ void GameLoop::OnSleep(std::chrono::milliseconds duration) {
 
     if (writeLockHeld_) {
         d2bs::game::GameWriteLock::Release();
-        // Slice the wait into wall-1ms chunks at low speed (gives script
-        // readers periodic windows) but yield once the remaining virtual
-        // budget is below 1ms wall - at high speed sleeping 1ms wall would
-        // overshoot the deadline by far more than the slice itself.
+        // Release for idleSleep-ms real-wall slices so script readers get windows,
+        // re-draining each slice; yield under 1ms wall left. A large
+        // IdleSleepIntervalMs just coarsens the deadline re-check (idle CPU vs latency).
         const float speed = d2bs::speedhack::GetSpeed();
+        const auto idleSleep = d2bs::config::GetAppConfig().idleSleepInterval;
         while (true) {
             auto now = std::chrono::steady_clock::now();
             if (now >= deadline) {
@@ -140,7 +140,7 @@ void GameLoop::OnSleep(std::chrono::milliseconds duration) {
                 std::this_thread::yield();
             } else {
                 d2bs::speedhack::SpeedhackDisabledScope realWaits;
-                std::this_thread::sleep_for(std::chrono::milliseconds{1});
+                std::this_thread::sleep_for(idleSleep);
             }
             d2bs::game::GameWriteLock lock;
             d2bs::game::GameThread::Drain();
