@@ -65,6 +65,9 @@ jobs:
       # `install` on every build and rebuilds from source unless it finds a
       # matching archive here.
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+      # Pinned vcpkg commit (tool + builtin registry); matches builtin-baseline
+      # in vcpkg.json. Bumping it deliberately invalidates the binary cache.
+      VCPKG_REF: 74e6536215718009aae747d86d84b78376bf9e09
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,15 +79,26 @@ jobs:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           # run_id (+ job) keeps every save key unique so a fresh build always
           # saves; the prefix restore-keys then pick up the most recent cache.
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-${{ github.run_id }}-${{ github.job }}
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-${{ github.run_id }}-${{ github.job }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-
-            vcpkg-${{ runner.os }}-
-      - name: Set up vcpkg (binary cache + MSBuild manifest restore)
+            vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-
+            vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-
+      - name: Set up pinned vcpkg (binary cache + MSBuild manifest restore)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
-          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
+          # Pin vcpkg (tool + builtin registry) to a fixed commit so the runner
+          # image's bundled vcpkg can't drift our ABI hashes / dependency versions
+          # out from under the binary cache. VCPKG_REF matches builtin-baseline in
+          # vcpkg.json; integrate install from this copy points MSBuild at it.
+          $vcpkgDir = "$env:RUNNER_TEMP\vcpkg"
+          git clone --quiet https://github.com/microsoft/vcpkg.git $vcpkgDir
+          git -C $vcpkgDir checkout --quiet $env:VCPKG_REF
+          & "$vcpkgDir\bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed" }
+          & "$vcpkgDir\vcpkg.exe" integrate install
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg integrate failed" }
+          "VCPKG_ROOT=$vcpkgDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       # V8 monolith libs are not in the repo; seed them once as the v8-14.0.264.0
       # release asset (v8-libs.zip with x86-release/v8_monolith.lib).
       - name: Cache V8 monolith libs
@@ -144,6 +158,9 @@ jobs:
     runs-on: windows-latest
     env:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+      # Pinned vcpkg commit (tool + builtin registry); matches builtin-baseline
+      # in vcpkg.json. Bumping it deliberately invalidates the binary cache.
+      VCPKG_REF: 74e6536215718009aae747d86d84b78376bf9e09
     steps:
       - uses: actions/checkout@v4
         with:
@@ -153,15 +170,26 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-${{ github.run_id }}-${{ github.job }}
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-${{ github.run_id }}-${{ github.job }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-
-            vcpkg-${{ runner.os }}-
-      - name: Set up vcpkg (binary cache + MSBuild manifest restore)
+            vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-${{ hashFiles('vcpkg.json', 'tests/framework/vcpkg.json') }}-
+            vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-
+      - name: Set up pinned vcpkg (binary cache + MSBuild manifest restore)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
-          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
+          # Pin vcpkg (tool + builtin registry) to a fixed commit so the runner
+          # image's bundled vcpkg can't drift our ABI hashes / dependency versions
+          # out from under the binary cache. VCPKG_REF matches builtin-baseline in
+          # vcpkg.json; integrate install from this copy points MSBuild at it.
+          $vcpkgDir = "$env:RUNNER_TEMP\vcpkg"
+          git clone --quiet https://github.com/microsoft/vcpkg.git $vcpkgDir
+          git -C $vcpkgDir checkout --quiet $env:VCPKG_REF
+          & "$vcpkgDir\bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed" }
+          & "$vcpkgDir\vcpkg.exe" integrate install
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg integrate failed" }
+          "VCPKG_ROOT=$vcpkgDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       # The test exe links no V8, so no V8 fetch here.
       - name: Build + run tests
         shell: pwsh
