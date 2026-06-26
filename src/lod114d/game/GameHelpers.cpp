@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <cstring>
 #include <limits>
 #include <span>
 #include <string>
@@ -23,6 +22,7 @@
 #include "game/Compatibility.h"
 #include "game/Constants.h"
 #include "game/Control.h"
+// ReSharper disable once CppUnusedIncludeDirective - inline Find*/Get* defs (declared in the handle headers)
 #include "game/Finders.h"
 #include "game/GameThread.h"
 #include "game/LaunchOptions.h"
@@ -56,10 +56,9 @@
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
-#include <D2BitManip.h>            // D2BitBufferStrc
+// ReSharper disable once CppUnusedIncludeDirective
+#include <DataTbls/InvTbls.h>      // D2InventoryGridInfoStrc
 #include <DataTbls/ItemsTbls.h>    // D2ItemsTxt
-#include <DataTbls/LevelsTbls.h>   // D2LevelsTxt
-#include <DataTbls/ObjectsTbls.h>  // D2ObjectsTxt
 #include <Path/Path.h>             // D2DynamicPathStrc
 #include <Units/Units.h>           // D2UnitStrc
 #pragma clang diagnostic pop
@@ -67,9 +66,9 @@
 namespace d2bs::game {
 
 using namespace d2bs::imports;
-using d2bs::imports::extras::D2ActiveRoomStrc;
-using d2bs::imports::extras::D2DrlgActStrc;
-using d2bs::imports::extras::D2DrlgLevelStrc;
+using extras::D2ActiveRoomStrc;
+using extras::D2DrlgActStrc;
+using extras::D2DrlgLevelStrc;
 
 namespace {
 
@@ -95,12 +94,12 @@ std::string ToString(const std::array<char, N>& buf) {
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables) - GameVar
 // instances must have static storage so they self-register with the import
 // registry before Bridge::Init runs.
-imports::GameVar<D2InventoryGridInfoStrc> tradeLayout{0x3BCA30};
-imports::GameVar<D2InventoryGridInfoStrc> stashLayout{0x3BCA78};
-imports::GameVar<D2InventoryGridInfoStrc> storeLayout{0x3BCB58};
-imports::GameVar<D2InventoryGridInfoStrc> cubeLayout{0x3BCB70};
-imports::GameVar<D2InventoryGridInfoStrc> inventoryLayout{0x3BCB88};
-imports::GameVar<D2InventoryGridInfoStrc> mercLayout{0x3BCD4C};
+GameVar<D2InventoryGridInfoStrc> tradeLayout{0x3BCA30};
+GameVar<D2InventoryGridInfoStrc> stashLayout{0x3BCA78};
+GameVar<D2InventoryGridInfoStrc> storeLayout{0x3BCB58};
+GameVar<D2InventoryGridInfoStrc> cubeLayout{0x3BCB70};
+GameVar<D2InventoryGridInfoStrc> inventoryLayout{0x3BCB88};
+GameVar<D2InventoryGridInfoStrc> mercLayout{0x3BCD4C};
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 struct LayoutEntry {
@@ -230,7 +229,7 @@ std::string GetWindowTitle() {
         return {};
     }
     std::array<wchar_t, 256> title{};
-    const auto len = ::GetWindowTextW(hwnd, title.data(), static_cast<int>(title.size()));
+    const auto len = GetWindowTextW(hwnd, title.data(), title.size());
     if (len <= 0) {
         return {};
     }
@@ -456,7 +455,7 @@ void ReceiveGamePacket(std::span<const uint8_t> data) {
     if (data.empty()) {
         return;
     }
-    d2net::CLIENT_DequeueGamePacket(data.data(), static_cast<uint32_t>(data.size()));
+    d2net::CLIENT_DequeueGamePacket(data.data(), data.size());
 }
 
 // === Chat ===
@@ -491,7 +490,7 @@ void Say(const std::string& text) {
         }
         auto wide = utils::ToWStr(text);
         auto ansi = utils::ToStr(wide, CP_ACP);
-        auto* dst = imports::d2multi::gszChatBoxMsg.Ptr()->data();
+        auto* dst = d2multi::gszChatBoxMsg.Ptr()->data();
         if (dst == nullptr) {
             return;
         }
@@ -500,14 +499,14 @@ void Say(const std::string& text) {
         return;
     }
     auto wide = utils::ToWStr(text);
-    auto* chatBuf = imports::d2client::gwszChatMsg.Ptr()->data();
+    auto* chatBuf = d2client::gwszChatMsg.Ptr()->data();
     if (chatBuf == nullptr) {
         return;
     }
     std::memcpy(chatBuf, wide.c_str(), (wide.size() + 1) * sizeof(wchar_t));
 
     MSG msg{};
-    msg.hwnd = imports::d2gfx::WINDOW_GetWindow();
+    msg.hwnd = d2gfx::WINDOW_GetWindow();
     msg.message = WM_CHAR;
     msg.wParam = VK_RETURN;
     msg.lParam = 0x11C0001;
@@ -600,7 +599,7 @@ bool TradeOK() {
         return false;
     }
     bool matched = false;
-    const auto count = std::min<uint32_t>(tdi->dwNumLines, static_cast<uint32_t>(tdi->aDialogLines.size()));
+    const auto count = std::min<uint32_t>(tdi->dwNumLines, tdi->aDialogLines.size());
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index) - bounded by count above
     for (uint32_t i = 0; i < count && !matched; ++i) {
         if (tdi->aDialogLines[i].pfHandler == tradeOk) {
@@ -814,7 +813,7 @@ TxtValue GetTxtValue(std::string_view table, uint32_t row, std::string_view colu
     if (table.empty() || column.empty()) {
         return std::monostate{};
     }
-    auto raw = imports::extras::GetTxtValue(table, row, column);
+    auto raw = extras::GetTxtValue(table, row, column);
     if (auto* n = std::get_if<int64_t>(&raw)) {
         return *n;
     }
@@ -828,7 +827,7 @@ std::optional<uint32_t> GetTxtTableRowCount(std::string_view table) {
     if (table.empty()) {
         return std::nullopt;
     }
-    return imports::extras::GetTxtTableRowCount(table);
+    return extras::GetTxtTableRowCount(table);
 }
 
 int32_t GetQuestFlag(uint32_t quest, uint32_t flag) {
@@ -1341,7 +1340,7 @@ void LeaveParty() {
     d2client::PARTY_Leave();
 }
 
-uint32_t CheckUnitCollision(const game::Unit& unit1, const game::Unit& unit2, uint32_t mask) {
+uint32_t CheckUnitCollision(const Unit& unit1, const Unit& unit2, uint32_t mask) {
     const auto id1 = unit1.Id();
     const auto type1 = unit1.Type();
     const auto id2 = unit2.Id();
@@ -1621,7 +1620,7 @@ int32_t SendIPC(uint32_t mode, std::string_view data, uintptr_t targetHwnd, std:
         }
         // Both empty -> FindWindowW(NULL, NULL) returns the broadcast HWND
         // (per reference behaviour the recipient is the foreground window).
-        target = ::FindWindowW(classPtr, namePtr);
+        target = FindWindowW(classPtr, namePtr);
     }
     if (target == nullptr) {
         return 0;
@@ -1633,7 +1632,7 @@ int32_t SendIPC(uint32_t mode, std::string_view data, uintptr_t targetHwnd, std:
     cds.cbData = static_cast<DWORD>(buffer.size()) + 1U;  // include null terminator
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast) - COPYDATASTRUCT.lpData isn't mutated
     cds.lpData = const_cast<char*>(buffer.c_str());
-    return static_cast<int32_t>(::SendMessageW(target, WM_COPYDATA, reinterpret_cast<WPARAM>(d2gfx::WINDOW_GetWindow()),
+    return static_cast<int32_t>(SendMessageW(target, WM_COPYDATA, reinterpret_cast<WPARAM>(d2gfx::WINDOW_GetWindow()),
                                                reinterpret_cast<LPARAM>(&cds)));
 }
 
@@ -1865,7 +1864,7 @@ std::vector<DialogLine> GetDialogLines() {
         return {};
     }
     std::vector<DialogLine> out;
-    const auto count = std::min<uint32_t>(tdi->dwNumLines, static_cast<uint32_t>(tdi->aDialogLines.size()));
+    const auto count = std::min<uint32_t>(tdi->dwNumLines, tdi->aDialogLines.size());
     out.reserve(count);
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index) - bounded by count above
     for (uint32_t i = 0; i < count; ++i) {
@@ -1889,7 +1888,7 @@ bool SelectDialogLineByText(const std::string& text) {
             return false;
         }
         auto* info = *d2client::gpTransactionDialogsInfo;
-        const auto count = std::min<uint32_t>(info->dwNumLines, static_cast<uint32_t>(info->aDialogLines.size()));
+        const auto count = std::min<uint32_t>(info->dwNumLines, info->aDialogLines.size());
         // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index) - bounded by count above
         for (uint32_t i = 0; i < count; ++i) {
             auto& line = info->aDialogLines[i];
@@ -1900,7 +1899,7 @@ bool SelectDialogLineByText(const std::string& text) {
             // constructor's wcslen -- that scans past the array and AVs on
             // the next page when there's no terminator.
             std::wstring lineWide{line.wszText.data(), wcsnlen(line.wszText.data(), line.wszText.size())};
-            auto lineUtf8 = d2bs::utils::ToStr(lineWide, CP_UTF8);
+            auto lineUtf8 = utils::ToStr(lineWide, CP_UTF8);
             if (lineUtf8 != text) {
                 continue;
             }
@@ -1940,7 +1939,7 @@ void SendKey(uint32_t key) {
     }
     constexpr auto SETTLE_DELAY = std::chrono::milliseconds{100};
     LPARAM lpDown = 1;
-    lpDown |= static_cast<LPARAM>(::MapVirtualKeyW(key, MAPVK_VK_TO_VSC)) << 16;
+    lpDown |= static_cast<LPARAM>(MapVirtualKeyW(key, MAPVK_VK_TO_VSC)) << 16;
     LPARAM lpUp = lpDown | static_cast<LPARAM>(0xC0000000U);
     hooks::PostInjectedInput(hwnd, WM_KEYDOWN, key, lpDown);
     std::this_thread::sleep_for(SETTLE_DELAY);

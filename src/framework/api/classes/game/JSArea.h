@@ -11,7 +11,7 @@ namespace d2bs::api::classes {
 
 // Area class - represents a game area/level
 // Areas contain rooms and provide information about level layout
-class JSArea : public V8ClassBase<JSArea, d2bs::game::Level> {
+class JSArea : public V8ClassBase<JSArea, game::Level> {
    public:
     static constexpr std::string_view ClassName = "Area";
 
@@ -38,7 +38,7 @@ class JSArea : public V8ClassBase<JSArea, d2bs::game::Level> {
 
                 for (uint32_t i = 0; i < exits.size(); ++i) {
                     auto exitObj =
-                        JSExit::CreateInstance(isolate, context, std::make_unique<d2bs::game::ExitInfo>(exits[i]));
+                        JSExit::CreateInstance(isolate, context, std::make_unique<game::ExitInfo>(exits[i]));
                     if (exitObj.IsEmpty()) {
                         v8_error::ThrowError(isolate, "Failed to build exit array");
                         return;

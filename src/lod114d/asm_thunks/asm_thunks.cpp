@@ -92,7 +92,7 @@ bool Init() {
         if (!e.fn.IsResolved()) {
             std::wstring msg = L"d2bsng: failed to initialise asm thunks - unresolved import: ";
             for (const char* p = e.name; *p != '\0'; ++p) {
-                msg.push_back(static_cast<wchar_t>(static_cast<unsigned char>(*p)));
+                msg.push_back(static_cast<unsigned char>(*p));
             }
             MessageBoxW(nullptr, msg.c_str(), L"d2bsng init failure", MB_OK | MB_ICONERROR);
             return false;

@@ -3,7 +3,6 @@
 
 #include <v8.h>
 #include <atomic>
-#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -21,11 +20,11 @@ enum class Align : uint8_t { Left, Right, Center };
 struct Drawable : std::enable_shared_from_this<Drawable> {
     // 8-byte POD atomics - lock-free on x86 via CMPXCHG8B.  The asserts
     // make any platform regression a compile error.
-    static_assert(std::atomic<d2bs::game::Point>::is_always_lock_free,
+    static_assert(std::atomic<game::Point>::is_always_lock_free,
                   "std::atomic<Point> must be lock-free on the target platform");
     // Default (0,0) matches pre-refactor JS-observable defaults (`new Box().x === 0`).
     // Scripts may still explicitly assign -1; the sentinel check in Draw() honours that.
-    std::atomic<d2bs::game::Point> pos{d2bs::game::Point::Zero};
+    std::atomic<game::Point> pos{game::Point::Zero};
     std::atomic<int32_t> zorder = 1;
     std::atomic<Align> align = Align::Left;
     std::atomic<bool> isVisible = true;
@@ -43,49 +42,49 @@ struct Drawable : std::enable_shared_from_this<Drawable> {
     virtual ~Drawable();
 
     virtual void Draw() const = 0;
-    virtual bool Contains(d2bs::game::Point p) const = 0;
+    virtual bool Contains(game::Point p) const = 0;
 
     // Game-thread collection entry points. Each iterates live scripts via
     // Script::GetDrawables(), which returns a snapshot with per-script isolate
     // keep-alive so ~Drawable's v8::Global::Reset is safe under concurrent
     // script teardown.
-    static void DrawAll(d2bs::game::GameState state);
+    static void DrawAll(game::GameState state);
 
     // Returns true if a visible drawable with an onClick handler contains point.
     // Called from the game thread to decide whether to block the game's click handling.
     // Also posts a ScreenHookClickEvent to the owning script for V8 callback invocation.
-    static bool OnClick(d2bs::game::ClickButton button, d2bs::game::Point pos, d2bs::game::GameState state);
+    static bool OnClick(game::ClickButton button, game::Point pos, game::GameState state);
 
     // Tracks hover enter/leave state for all drawables.  Respects z-order:
     // only the topmost visible drawable with an onHover handler is considered
     // "hovered".  Posts ScreenHookHoverEvents to owning scripts on transitions.
-    static void OnMouseMove(d2bs::game::Point pos, d2bs::game::GameState state);
+    static void OnMouseMove(game::Point pos, game::GameState state);
 };
 
 struct BoxDrawable final : Drawable {
-    static_assert(std::atomic<d2bs::game::Size>::is_always_lock_free,
+    static_assert(std::atomic<game::Size>::is_always_lock_free,
                   "std::atomic<Size> must be lock-free on the target platform");
-    std::atomic<d2bs::game::Size> size{d2bs::game::Size::Zero};
+    std::atomic<game::Size> size{game::Size::Zero};
     std::atomic<uint32_t> color = 0;
     std::atomic<uint32_t> opacity = 0;
 
     void Draw() const override;
-    bool Contains(d2bs::game::Point p) const override;
+    bool Contains(game::Point p) const override;
 };
 
 struct FrameDrawable final : Drawable {
-    std::atomic<d2bs::game::Size> size{d2bs::game::Size::Zero};
+    std::atomic<game::Size> size{game::Size::Zero};
 
     void Draw() const override;
-    bool Contains(d2bs::game::Point p) const override;
+    bool Contains(game::Point p) const override;
 };
 
 struct LineDrawable final : Drawable {
-    std::atomic<d2bs::game::Point> p2{d2bs::game::Point::Zero};
+    std::atomic<game::Point> p2{game::Point::Zero};
     std::atomic<uint32_t> color = 0;
 
     void Draw() const override;
-    bool Contains(d2bs::game::Point p) const override;
+    bool Contains(game::Point p) const override;
 };
 
 struct TextDrawable final : Drawable {
@@ -102,7 +101,7 @@ struct TextDrawable final : Drawable {
     }
 
     void Draw() const override;
-    bool Contains(d2bs::game::Point p) const override;
+    bool Contains(game::Point p) const override;
 
    private:
     std::string text_;
@@ -122,18 +121,18 @@ struct ImageDrawable final : Drawable {
     // (unresolved) path on miss. Both legs failing leaves sprite_ as the
     // unloaded sentinel - Draw / Contains silently no-op.
     void SetPath(const std::filesystem::path& value) {
-        auto resolved = d2bs::config::GetPathRelScript(value.string());
-        auto loaded = d2bs::game::Sprite::FromFile(resolved);
+        auto resolved = config::GetPathRelScript(value.string());
+        auto loaded = game::Sprite::FromFile(resolved);
         if (!loaded) {
-            loaded = d2bs::game::Sprite::FromMpq(value.string());
+            loaded = game::Sprite::FromMpq(value.string());
         }
         std::scoped_lock lock(spriteMutex_);
         path_ = value;
-        sprite_ = loaded.value_or(d2bs::game::Sprite{});
+        sprite_ = loaded.value_or(game::Sprite{});
     }
 
     void Draw() const override;
-    bool Contains(d2bs::game::Point p) const override;
+    bool Contains(game::Point p) const override;
 
    private:
     // Path retained alongside the sprite handle so GetPath remains cheap
@@ -141,7 +140,7 @@ struct ImageDrawable final : Drawable {
     // is the script-supplied (unresolved) path; sprite_ holds the resolved
     // absolute path.
     std::filesystem::path path_;
-    d2bs::game::Sprite sprite_;
+    game::Sprite sprite_;
     mutable std::mutex spriteMutex_;
 };
 

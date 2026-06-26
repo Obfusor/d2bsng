@@ -103,7 +103,7 @@ class GameThread {
             const auto start = std::chrono::steady_clock::now();
             // VEH stack shows only the generic lambda wrapper; annotate with the
             // posting site so first-chance AVs name the JS binding that posted.
-            d2bs::thread_utils::CrashContextScope scope(std::format(
+            thread_utils::CrashContextScope scope(std::format(
                 "GameThread task from {}:{} ({})", std::filesystem::path(task.loc.file_name()).filename().string(),
                 task.loc.line(), task.loc.function_name()));
             task.func();

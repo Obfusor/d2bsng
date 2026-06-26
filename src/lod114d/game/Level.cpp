@@ -16,7 +16,7 @@
 
 namespace d2bs::game {
 
-using d2bs::imports::extras::D2DrlgLevelStrc;
+using imports::extras::D2DrlgLevelStrc;
 
 namespace {
 

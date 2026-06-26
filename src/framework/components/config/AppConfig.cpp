@@ -1,7 +1,8 @@
 // ConfigStore.h must precede AppConfig.h so that ConfigStore is a complete type
 // when unique_ptr<ConfigStore> member initializers are parsed.
-#include "ConfigStore.h"
 
+// ReSharper disable once CppUnusedIncludeDirective
+#include "ConfigStore.h"
 #include "AppConfig.h"
 #include "utils/utils.h"
 
@@ -100,8 +101,8 @@ std::filesystem::path GetPathRelScript(const std::string& relativePath) {
     }
 
     // Case-insensitive prefix check (Windows/NTFS is case-insensitive).
-    auto fullLower = d2bs::utils::ToLower(std::wstring(fullStr));
-    auto baseLower = d2bs::utils::ToLower(baseStr);
+    auto fullLower = utils::ToLower(std::wstring(fullStr));
+    auto baseLower = utils::ToLower(baseStr);
     if (!fullLower.starts_with(baseLower)) {
         return {};
     }

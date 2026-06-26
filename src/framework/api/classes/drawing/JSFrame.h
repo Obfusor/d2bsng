@@ -29,7 +29,7 @@ class JSFrame : public JSDrawableBase<JSFrame, FrameDrawable> {
     static void New(const v8::FunctionCallbackInfo<v8::Value>& args) {
         V8_CLASS_CTOR_PROLOGUE;
 
-        auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+        auto* script = ScriptEngine::Instance().GetScript(isolate);
         if (!script) {
             v8_error::ThrowError(isolate, "Frame: no owning script");
             return;

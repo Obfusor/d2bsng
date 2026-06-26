@@ -3,10 +3,9 @@
 #include <v8.h>
 #include <memory>
 #include <mutex>
-#include <string>
-#include <string_view>
 #include <unordered_map>
 #include "V8Convert.h"
+#include "V8Error.h"
 #include "V8InstanceTracker.h"
 #include "components/script/NativeCallHook.h"
 
@@ -20,7 +19,6 @@ namespace d2bs::api {
 
 template <typename Derived, typename NativeType>
 class V8ClassBase {
-   private:
     struct TemplateCache {
         std::unordered_map<v8::Isolate*, v8::Global<v8::FunctionTemplate>> templates;
         std::mutex mutex;

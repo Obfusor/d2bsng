@@ -50,9 +50,9 @@ static_assert(sizeof(WindowHandlerHashTable) == 0x08, "WindowHandlerHashTable la
 }  // namespace d2bs::imports::extras
 
 namespace d2bs::game {
-using ::d2bs::imports::extras::MessageHandlerHashTable;
-using ::d2bs::imports::extras::MessageHandlerList;
-using ::d2bs::imports::extras::WindowHandlerHashTable;
-using ::d2bs::imports::extras::WindowHandlerList;
+using imports::extras::MessageHandlerHashTable;
+using imports::extras::MessageHandlerList;
+using imports::extras::WindowHandlerHashTable;
+using imports::extras::WindowHandlerList;
 }  // namespace d2bs::game
 // NOLINTEND(readability-identifier-naming)

@@ -9,11 +9,11 @@
 namespace d2bs::speedhack {
 
 void SetSpeed(float newSpeed) {
-    d2bs::config::GetAppConfig().speed.store(newSpeed, std::memory_order_relaxed);
+    config::GetAppConfig().speed.store(newSpeed, std::memory_order_relaxed);
 }
 
 float GetSpeed() {
-    return d2bs::config::GetAppConfig().speed.load(std::memory_order_relaxed);
+    return config::GetAppConfig().speed.load(std::memory_order_relaxed);
 }
 
 DWORD ScaleTimeout(DWORD ms) {

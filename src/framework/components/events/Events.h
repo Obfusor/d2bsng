@@ -25,7 +25,7 @@ namespace d2bs {
 class LifeEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, life)};
+        return {api::v8_convert::ToV8(isolate, life)};
     }
 
    public:
@@ -39,7 +39,7 @@ class LifeEvent : public BaseEvent {
 class ManaEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, mana)};
+        return {api::v8_convert::ToV8(isolate, mana)};
     }
 
    public:
@@ -53,7 +53,7 @@ class ManaEvent : public BaseEvent {
 class PlayerAssignEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, unitId)};
+        return {api::v8_convert::ToV8(isolate, unitId)};
     }
 
    public:
@@ -71,7 +71,7 @@ class PlayerAssignEvent : public BaseEvent {
 class KeyDownEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, key)};
+        return {api::v8_convert::ToV8(isolate, key)};
     }
 
    public:
@@ -85,7 +85,7 @@ class KeyDownEvent : public BaseEvent {
 class KeyUpEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, key)};
+        return {api::v8_convert::ToV8(isolate, key)};
     }
 
    public:
@@ -100,7 +100,7 @@ class KeyUpEvent : public BaseEvent {
 class KeyDownBlockerEvent : public BlockableEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, key)};
+        return {api::v8_convert::ToV8(isolate, key)};
     }
 
    public:
@@ -115,7 +115,7 @@ class KeyDownBlockerEvent : public BlockableEvent {
 class KeyUpBlockerEvent : public BlockableEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, key)};
+        return {api::v8_convert::ToV8(isolate, key)};
     }
 
    public:
@@ -134,19 +134,19 @@ class MouseClickEvent : public BaseEvent {
     // JS arg shape unchanged: (button:number, x:number, y:number, up:number 0/1).
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, static_cast<uint32_t>(button)),
-            d2bs::api::v8_convert::ToV8(isolate, pos.x),
-            d2bs::api::v8_convert::ToV8(isolate, pos.y),
-            d2bs::api::v8_convert::ToV8(isolate, state == d2bs::game::KeyState::Up ? 1 : 0),
+            api::v8_convert::ToV8(isolate, static_cast<uint32_t>(button)),
+            api::v8_convert::ToV8(isolate, pos.x),
+            api::v8_convert::ToV8(isolate, pos.y),
+            api::v8_convert::ToV8(isolate, state == game::KeyState::Up ? 1 : 0),
         };
     }
 
    public:
-    MouseClickEvent(d2bs::game::ClickButton button, d2bs::game::Position pos, d2bs::game::KeyState state)
+    MouseClickEvent(game::ClickButton button, game::Position pos, game::KeyState state)
         : button(button), pos(pos), state(state) {}
-    const d2bs::game::ClickButton button;
-    const d2bs::game::Position pos;
-    const d2bs::game::KeyState state;
+    const game::ClickButton button;
+    const game::Position pos;
+    const game::KeyState state;
     [[nodiscard]] std::string_view Name() const override { return "mouseclick"; }
 };
 
@@ -157,12 +157,12 @@ class MouseMoveEvent : public BaseEvent {
    protected:
     // JS arg shape unchanged: (x:number, y:number).
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
-        return {d2bs::api::v8_convert::ToV8(isolate, pos.x), d2bs::api::v8_convert::ToV8(isolate, pos.y)};
+        return {api::v8_convert::ToV8(isolate, pos.x), api::v8_convert::ToV8(isolate, pos.y)};
     }
 
    public:
-    explicit MouseMoveEvent(d2bs::game::Position pos) : pos(pos) {}
-    const d2bs::game::Position pos;
+    explicit MouseMoveEvent(game::Position pos) : pos(pos) {}
+    const game::Position pos;
     [[nodiscard]] std::string_view Name() const override { return "mousemove"; }
 };
 
@@ -177,8 +177,8 @@ class ChatEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, sender),
-            d2bs::api::v8_convert::ToV8(isolate, message),
+            api::v8_convert::ToV8(isolate, sender),
+            api::v8_convert::ToV8(isolate, message),
         };
     }
 
@@ -197,8 +197,8 @@ class ChatBlockerEvent : public BlockableEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, sender),
-            d2bs::api::v8_convert::ToV8(isolate, message),
+            api::v8_convert::ToV8(isolate, sender),
+            api::v8_convert::ToV8(isolate, message),
         };
     }
 
@@ -217,8 +217,8 @@ class ChatInputEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, "me"),
-            d2bs::api::v8_convert::ToV8(isolate, message),
+            api::v8_convert::ToV8(isolate, "me"),
+            api::v8_convert::ToV8(isolate, message),
         };
     }
 
@@ -236,8 +236,8 @@ class ChatInputBlockerEvent : public BlockableEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, "me"),
-            d2bs::api::v8_convert::ToV8(isolate, message),
+            api::v8_convert::ToV8(isolate, "me"),
+            api::v8_convert::ToV8(isolate, message),
         };
     }
 
@@ -254,8 +254,8 @@ class WhisperEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, sender),
-            d2bs::api::v8_convert::ToV8(isolate, message),
+            api::v8_convert::ToV8(isolate, sender),
+            api::v8_convert::ToV8(isolate, message),
         };
     }
 
@@ -274,8 +274,8 @@ class WhisperBlockerEvent : public BlockableEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, sender),
-            d2bs::api::v8_convert::ToV8(isolate, message),
+            api::v8_convert::ToV8(isolate, sender),
+            api::v8_convert::ToV8(isolate, message),
         };
     }
 
@@ -356,9 +356,9 @@ class GameActionEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, mode),   d2bs::api::v8_convert::ToV8(isolate, param1),
-            d2bs::api::v8_convert::ToV8(isolate, param2), d2bs::api::v8_convert::ToV8(isolate, name1),
-            d2bs::api::v8_convert::ToV8(isolate, name2),
+            api::v8_convert::ToV8(isolate, mode),   api::v8_convert::ToV8(isolate, param1),
+            api::v8_convert::ToV8(isolate, param2), api::v8_convert::ToV8(isolate, name1),
+            api::v8_convert::ToV8(isolate, name2),
         };
     }
 
@@ -382,10 +382,10 @@ class ItemActionEvent : public BaseEvent {
    protected:
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
-            d2bs::api::v8_convert::ToV8(isolate, unitId),
-            d2bs::api::v8_convert::ToV8(isolate, action),
-            d2bs::api::v8_convert::ToV8(isolate, code),
-            d2bs::api::v8_convert::ToV8(isolate, isGlobal),
+            api::v8_convert::ToV8(isolate, unitId),
+            api::v8_convert::ToV8(isolate, action),
+            api::v8_convert::ToV8(isolate, code),
+            api::v8_convert::ToV8(isolate, isGlobal),
         };
     }
 
@@ -407,14 +407,14 @@ class CopyDataEvent : public BaseEvent {
     std::vector<v8::Local<v8::Value>> MakeArgs(v8::Isolate* isolate) const override {
         return {
             // Scripts see the raw integer mode (matches reference CopyDataEvent surface).
-            d2bs::api::v8_convert::ToV8(isolate, static_cast<uint32_t>(mode)),
-            d2bs::api::v8_convert::ToV8(isolate, payload),
+            api::v8_convert::ToV8(isolate, static_cast<uint32_t>(mode)),
+            api::v8_convert::ToV8(isolate, payload),
         };
     }
 
    public:
-    CopyDataEvent(d2bs::game::IpcMode mode, std::string payload) : mode(mode), payload(std::move(payload)) {}
-    const d2bs::game::IpcMode mode;
+    CopyDataEvent(game::IpcMode mode, std::string payload) : mode(mode), payload(std::move(payload)) {}
+    const game::IpcMode mode;
     const std::string payload;
     [[nodiscard]] std::string_view Name() const override { return "copydata"; }
 };
@@ -494,18 +494,18 @@ class EvaluateEvent : public BaseEvent {
         v8::TryCatch tryCatch(isolate);
 
         auto cx = isolate->GetCurrentContext();
-        auto src = d2bs::api::v8_convert::ToV8(isolate, code);
+        auto src = api::v8_convert::ToV8(isolate, code);
 
-        v8::ScriptOrigin origin(d2bs::api::v8_convert::ToV8(isolate, framework::script::COMMAND_LINE_NAME));
+        v8::ScriptOrigin origin(api::v8_convert::ToV8(isolate, framework::script::COMMAND_LINE_NAME));
         v8::Local<v8::Script> snippet;
         v8::Local<v8::Value> result;
         if (v8::Script::Compile(cx, src, &origin).ToLocal(&snippet) && snippet->Run(cx).ToLocal(&result)) {
             if (!result->IsUndefined()) {
                 v8::String::Utf8Value resultStr(isolate, result);
-                d2bs::game::console::OnMessage({
-                    .source = d2bs::game::console::MessageSource::EvaluateResult,
+                game::console::OnMessage({
+                    .source = game::console::MessageSource::EvaluateResult,
                     .name = std::string{framework::script::COMMAND_LINE_NAME},
-                    .level = d2bs::game::console::MessageLevel::Info,
+                    .level = game::console::MessageLevel::Info,
                     .text = std::string(*resultStr, resultStr.length()),
                 });
             }
@@ -514,10 +514,10 @@ class EvaluateEvent : public BaseEvent {
             auto message = tryCatch.Message();
             if (!message.IsEmpty()) {
                 v8::String::Utf8Value errorStr(isolate, message->Get());
-                d2bs::game::console::OnMessage({
-                    .source = d2bs::game::console::MessageSource::EvaluateResult,
+                game::console::OnMessage({
+                    .source = game::console::MessageSource::EvaluateResult,
                     .name = std::string{framework::script::COMMAND_LINE_NAME},
-                    .level = d2bs::game::console::MessageLevel::Error,
+                    .level = game::console::MessageLevel::Error,
                     .text = std::string(*errorStr, errorStr.length()),
                 });
             }
@@ -540,7 +540,7 @@ class ScreenHookClickEvent : public BlockableEvent {
     }
 
    public:
-    ScreenHookClickEvent(d2bs::game::ClickButton button, d2bs::game::Point pos, v8::Global<v8::Function> fn)
+    ScreenHookClickEvent(game::ClickButton button, game::Point pos, v8::Global<v8::Function> fn)
         : button_(button), pos_(pos), fn_(std::move(fn)) {}
 
     void Execute(v8::Isolate* isolate, const std::vector<v8::Local<v8::Function>>& /*fns*/) override {
@@ -550,8 +550,8 @@ class ScreenHookClickEvent : public BlockableEvent {
     [[nodiscard]] std::string_view Name() const override { return "ScreenHookClick"; }
 
    private:
-    d2bs::game::ClickButton button_;
-    d2bs::game::Point pos_;
+    game::ClickButton button_;
+    game::Point pos_;
     v8::Global<v8::Function> fn_;
 };
 
@@ -566,7 +566,7 @@ class ScreenHookHoverEvent : public BaseEvent {
     }
 
    public:
-    ScreenHookHoverEvent(d2bs::game::Point pos, bool entered, v8::Global<v8::Function> fn)
+    ScreenHookHoverEvent(game::Point pos, bool entered, v8::Global<v8::Function> fn)
         : pos_(pos), entered_(entered), fn_(std::move(fn)) {}
 
     void Execute(v8::Isolate* isolate, const std::vector<v8::Local<v8::Function>>& /*fns*/) override {
@@ -576,7 +576,7 @@ class ScreenHookHoverEvent : public BaseEvent {
     [[nodiscard]] std::string_view Name() const override { return "ScreenHookHover"; }
 
    private:
-    d2bs::game::Point pos_;
+    game::Point pos_;
     bool entered_;
     v8::Global<v8::Function> fn_;
 };

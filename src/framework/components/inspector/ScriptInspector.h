@@ -3,7 +3,6 @@
 #include <v8-inspector.h>
 #include <v8.h>
 
-#include <cstdint>
 #include <memory>
 #include <string>
 

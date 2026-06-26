@@ -39,8 +39,8 @@ static_assert(sizeof(D2UnitHashTables) == UNIT_HASH_TYPE_COUNT * UNIT_HASH_BUCKE
 }  // namespace d2bs::imports::extras
 
 namespace d2bs::game {
-using ::d2bs::imports::extras::D2UnitHashTable;
-using ::d2bs::imports::extras::D2UnitHashTables;
-using ::d2bs::imports::extras::UNIT_HASH_BUCKETS;
-using ::d2bs::imports::extras::UNIT_HASH_TYPE_COUNT;
+using imports::extras::D2UnitHashTable;
+using imports::extras::D2UnitHashTables;
+using imports::extras::UNIT_HASH_BUCKETS;
+using imports::extras::UNIT_HASH_TYPE_COUNT;
 }  // namespace d2bs::game

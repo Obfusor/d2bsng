@@ -73,7 +73,7 @@ int32_t ApplyImageAlign(Align a, int32_t width) {
 }
 
 struct Hit {
-    std::shared_ptr<d2bs::Script> script;
+    std::shared_ptr<Script> script;
     std::shared_ptr<Drawable> drawable;
 };
 
@@ -82,10 +82,10 @@ struct Hit {
 // caller-supplied predicate filters by handler presence (onClick / onHover /
 // any).
 template <typename Wants>
-Hit FindTopHit(d2bs::game::Point pos, d2bs::game::GameState state, Wants wants) {
+Hit FindTopHit(game::Point pos, game::GameState state, Wants wants) {
     Hit best;
     int32_t bestZ = 0;
-    for (auto& script : d2bs::ScriptEngine::Instance().GetAllScripts()) {
+    for (auto& script : ScriptEngine::Instance().GetAllScripts()) {
         if (!script->DrawablesVisibleIn(state)) {
             continue;
         }
@@ -113,9 +113,9 @@ Drawable::~Drawable() {
     }
 }
 
-void Drawable::DrawAll(d2bs::game::GameState state) {
+void Drawable::DrawAll(game::GameState state) {
     std::vector<std::pair<int32_t, std::shared_ptr<Drawable>>> toDraw;
-    for (auto& script : d2bs::ScriptEngine::Instance().GetAllScripts()) {
+    for (auto& script : ScriptEngine::Instance().GetAllScripts()) {
         if (!script->DrawablesVisibleIn(state)) {
             continue;
         }
@@ -123,7 +123,7 @@ void Drawable::DrawAll(d2bs::game::GameState state) {
             if (!drawable->isVisible.load()) {
                 continue;
             }
-            if (drawable->isAutomap.load() && !d2bs::game::GetAutomapOn()) {
+            if (drawable->isAutomap.load() && !game::GetAutomapOn()) {
                 continue;
             }
             toDraw.emplace_back(drawable->zorder.load(), std::move(drawable));
@@ -140,7 +140,7 @@ void Drawable::DrawAll(d2bs::game::GameState state) {
     }
 }
 
-bool Drawable::OnClick(d2bs::game::ClickButton button, d2bs::game::Point pos, d2bs::game::GameState state) {
+bool Drawable::OnClick(game::ClickButton button, game::Point pos, game::GameState state) {
     auto hit = FindTopHit(pos, state, [](const Drawable& d) { return !d.onClick.IsEmpty(); });
     if (!hit.drawable) {
         return false;
@@ -153,7 +153,7 @@ bool Drawable::OnClick(d2bs::game::ClickButton button, d2bs::game::Point pos, d2
     if (fn.IsEmpty()) {
         return false;  // raced teardown / removal
     }
-    auto evt = std::make_shared<d2bs::ScreenHookClickEvent>(button, pos, std::move(fn));
+    auto evt = std::make_shared<ScreenHookClickEvent>(button, pos, std::move(fn));
     // Click events are blockable; bump the expected-handler counter so
     // IsBlocked() waits for the JS callback's return value. Hover events are
     // fire-and-forget and do not use this counter.
@@ -165,7 +165,7 @@ bool Drawable::OnClick(d2bs::game::ClickButton button, d2bs::game::Point pos, d2
     return evt->IsBlocked(std::chrono::seconds(3)).value_or(false);
 }
 
-void Drawable::OnMouseMove(d2bs::game::Point pos, d2bs::game::GameState state) {
+void Drawable::OnMouseMove(game::Point pos, game::GameState state) {
     // Find the topmost visible drawable at pos regardless of onHover -
     // occlusion respects z-order over all drawables, so a non-hoverable
     // overlay still blocks hover events on a hoverable drawable below it.
@@ -177,7 +177,7 @@ void Drawable::OnMouseMove(d2bs::game::Point pos, d2bs::game::GameState state) {
     // safe.
     auto top = FindTopHit(pos, state, [](const Drawable&) { return true; });
 
-    for (auto& script : d2bs::ScriptEngine::Instance().GetAllScripts()) {
+    for (auto& script : ScriptEngine::Instance().GetAllScripts()) {
         if (!script->DrawablesVisibleIn(state)) {
             continue;
         }
@@ -200,8 +200,8 @@ void Drawable::OnMouseMove(d2bs::game::Point pos, d2bs::game::GameState state) {
             if (fn.IsEmpty()) {
                 continue;
             }
-            script->ExecuteEvent(std::make_shared<d2bs::ScreenHookHoverEvent>(
-                shouldBeHovered ? pos : d2bs::game::Point::Zero, shouldBeHovered, std::move(fn)));
+            script->ExecuteEvent(std::make_shared<ScreenHookHoverEvent>(
+                shouldBeHovered ? pos : game::Point::Zero, shouldBeHovered, std::move(fn)));
         }
     }
 }
@@ -215,8 +215,8 @@ void BoxDrawable::Draw() const {
     Align snapAlign = align.load();
     auto w = static_cast<int32_t>(snapSize.width);
     auto h = static_cast<int32_t>(snapSize.height);
-    d2bs::game::Point draw{.x = snapPos.x + AlignOffset(snapAlign, w), .y = snapPos.y};
-    d2bs::game::Point draw2{.x = draw.x + w, .y = draw.y + h};
+    game::Point draw{.x = snapPos.x + AlignOffset(snapAlign, w), .y = snapPos.y};
+    game::Point draw2{.x = draw.x + w, .y = draw.y + h};
     if (isAutomap.load()) {
         draw = d2bs::game::ScreenToAutomap(draw);
         draw2 = d2bs::game::ScreenToAutomap(draw2);
@@ -224,7 +224,7 @@ void BoxDrawable::Draw() const {
     d2bs::game::DrawRectangle(draw, draw2, color.load(), opacity.load());
 }
 
-bool BoxDrawable::Contains(d2bs::game::Point p) const {
+bool BoxDrawable::Contains(game::Point p) const {
     auto snapPos = pos.load();
     auto snapSize = size.load();
     Align snapAlign = align.load();
@@ -243,12 +243,12 @@ void FrameDrawable::Draw() const {
     Align snapAlign = align.load();
     auto w = static_cast<int32_t>(snapSize.width);
     auto h = static_cast<int32_t>(snapSize.height);
-    d2bs::game::Point draw{.x = snapPos.x + AlignOffset(snapAlign, w), .y = snapPos.y};
-    d2bs::game::Point draw2{.x = draw.x + w, .y = draw.y + h};
+    game::Point draw{.x = snapPos.x + AlignOffset(snapAlign, w), .y = snapPos.y};
+    game::Point draw2{.x = draw.x + w, .y = draw.y + h};
     d2bs::game::DrawFrame(draw, draw2);
 }
 
-bool FrameDrawable::Contains(d2bs::game::Point p) const {
+bool FrameDrawable::Contains(game::Point p) const {
     auto snapPos = pos.load();
     auto snapSize = size.load();
     Align snapAlign = align.load();
@@ -264,8 +264,8 @@ void LineDrawable::Draw() const {
         return;
     }
     auto snapP2 = p2.load();
-    d2bs::game::Point draw = snapPos;
-    d2bs::game::Point draw2 = snapP2;
+    game::Point draw = snapPos;
+    game::Point draw2 = snapP2;
     if (isAutomap.load()) {
         draw = d2bs::game::ScreenToAutomap(draw);
         draw2 = d2bs::game::ScreenToAutomap(draw2);
@@ -273,7 +273,7 @@ void LineDrawable::Draw() const {
     d2bs::game::DrawLine(draw, draw2, color.load(), 0xFF);
 }
 
-bool LineDrawable::Contains(d2bs::game::Point /*p*/) const {
+bool LineDrawable::Contains(game::Point /*p*/) const {
     return false;  // Lines not clickable
 }
 
@@ -285,21 +285,21 @@ void TextDrawable::Draw() const {
     std::string snapText = GetText();
     int32_t snapFont = font.load();
     Align snapAlign = align.load();
-    auto textSize = d2bs::game::GetTextSize(snapText, snapFont);
+    auto textSize = game::GetTextSize(snapText, snapFont);
     auto w = static_cast<int32_t>(textSize.width);
-    d2bs::game::Point draw{.x = snapPos.x + AlignOffset(snapAlign, w, /*isText=*/true), .y = snapPos.y};
+    game::Point draw{.x = snapPos.x + AlignOffset(snapAlign, w, /*isText=*/true), .y = snapPos.y};
     if (isAutomap.load()) {
         draw = d2bs::game::ScreenToAutomap(draw);
     }
     d2bs::game::DrawGameText(snapText, draw, color.load(), snapFont);
 }
 
-bool TextDrawable::Contains(d2bs::game::Point p) const {
+bool TextDrawable::Contains(game::Point p) const {
     std::string snapText = GetText();
     int32_t snapFont = font.load();
     Align snapAlign = align.load();
     auto snapPos = pos.load();
-    auto textSize = d2bs::game::GetTextSize(snapText, snapFont);
+    auto textSize = game::GetTextSize(snapText, snapFont);
     auto w = static_cast<int32_t>(textSize.width);
     int32_t drawX = snapPos.x + AlignOffset(snapAlign, w, /*isText=*/true);
     return p.x >= drawX && p.x < drawX + w && p.y >= snapPos.y - static_cast<int32_t>(textSize.height) &&
@@ -311,7 +311,7 @@ void ImageDrawable::Draw() const {
     if (snapPos.x == -1 || snapPos.y == -1) {
         return;
     }
-    d2bs::game::Sprite snapSprite;
+    game::Sprite snapSprite;
     {
         std::scoped_lock lock(spriteMutex_);
         snapSprite = sprite_;
@@ -322,12 +322,12 @@ void ImageDrawable::Draw() const {
     auto sz = snapSprite.Size();
     auto w = static_cast<int32_t>(sz.width);
     Align snapAlign = align.load();
-    d2bs::game::Point center{.x = snapPos.x + ApplyImageAlign(snapAlign, w), .y = snapPos.y};
+    game::Point center{.x = snapPos.x + ApplyImageAlign(snapAlign, w), .y = snapPos.y};
     snapSprite.Draw(center, color.load(), isAutomap.load());
 }
 
-bool ImageDrawable::Contains(d2bs::game::Point p) const {
-    d2bs::game::Sprite snapSprite;
+bool ImageDrawable::Contains(game::Point p) const {
+    game::Sprite snapSprite;
     {
         std::scoped_lock lock(spriteMutex_);
         snapSprite = sprite_;

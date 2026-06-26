@@ -22,10 +22,10 @@ namespace d2bs::imports::extras {
 // D2Win Control - OOG UI widget (size = 0x264).
 // NOT packed - uses default alignment.
 struct D2WinControlStrc {
-    d2bs::game::ControlType dwType;  // 0x00
+    game::ControlType dwType;  // 0x00
     uint32_t* _1;                    // 0x04 - ptr, usually points to 6 when dwType is 6
     uint32_t dwState;                // 0x08
-    d2bs::game::Rect rect;           // 0x0C - origin.x@+0, origin.y@+4, size.width@+8, size.height@+C
+    game::Rect rect;           // 0x0C - origin.x@+0, origin.y@+4, size.width@+8, size.height@+C
     // Handler table (_2 through _9)
     uint32_t* _2;                         // 0x1C - some sort of function (maybe click?)
     uint32_t _3;                          // 0x20

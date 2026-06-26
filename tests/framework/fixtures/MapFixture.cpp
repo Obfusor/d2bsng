@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <fstream>
 
 namespace d2bs::test {
@@ -30,7 +29,7 @@ namespace {
 // uint32 and reads correctly into the unsigned aggregates.
 struct D2ColHeader {
     uint32_t levelId;
-    d2bs::game::Rect rect;
+    game::Rect rect;
 };
 
 static_assert(sizeof(D2ColHeader) == 20);
@@ -65,7 +64,7 @@ std::optional<MapFixture> MapFixture::Load(const std::filesystem::path& path) {
 
     MapFixture fixture;
     fixture.levelId = header.levelId;
-    fixture.grid = d2bs::pathfinding::LevelGrid(header.rect);
+    fixture.grid = pathfinding::LevelGrid(header.rect);
     fixture.grid.data = std::move(data);
     return fixture;
 }

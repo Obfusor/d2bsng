@@ -1,11 +1,9 @@
 #pragma once
 
 #include <v8.h>
-#include <cstdint>
 #include <string>
 #include <thread>
 #include "api/core/V8Class.h"
-#include "api/core/V8Convert.h"
 #include "api/core/V8Error.h"
 #include "components/script/ScriptEngine.h"
 
@@ -37,7 +35,7 @@ class JSScript : public V8ClassBase<JSScript, ScriptHandle> {
 
     // Create a Script JS object from a Script pointer
     // Returns empty handle if script is null
-    static v8::Local<v8::Object> Create(v8::Isolate* isolate, d2bs::Script* script);
+    static v8::Local<v8::Object> Create(v8::Isolate* isolate, Script* script);
 };
 
 }  // namespace d2bs::api::classes

@@ -6,9 +6,9 @@ namespace d2bs::framework::console {
 
 namespace {
 
-d2bs::game::console::MessageLevel MapLevel(spdlog::level::level_enum level) {
+game::console::MessageLevel MapLevel(spdlog::level::level_enum level) {
     using SpdlogLevel = spdlog::level::level_enum;
-    using MessageLevel = d2bs::game::console::MessageLevel;
+    using MessageLevel = game::console::MessageLevel;
     switch (level) {
         case SpdlogLevel::trace:
             return MessageLevel::Trace;
@@ -36,8 +36,8 @@ void ConsoleSink::sink_it_(const spdlog::details::log_msg& msg) {
     // the already-formatted output (not the format string). We hand that over
     // unchanged - the port decides whether to parse color escapes, add its
     // own timestamp / level prefix, or strip / colorize for rendering.
-    d2bs::game::console::OnMessage({
-        .source = d2bs::game::console::MessageSource::Log,
+    game::console::OnMessage({
+        .source = game::console::MessageSource::Log,
         .name = std::string{msg.logger_name.data(), msg.logger_name.size()},
         .level = MapLevel(msg.level),
         .text = std::string{msg.payload.data(), msg.payload.size()},

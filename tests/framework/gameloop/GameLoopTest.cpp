@@ -1,7 +1,6 @@
 #include <doctest/doctest.h>
 
 #include <chrono>
-#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>

@@ -12,11 +12,11 @@
 
 namespace d2bs::game {
 
-using d2bs::imports::extras::D2ActiveRoomStrc;
-using d2bs::imports::extras::D2DrlgActStrc;
-using d2bs::imports::extras::D2DrlgLevelStrc;
-using d2bs::imports::extras::D2DrlgRoomStrc;
-using d2bs::imports::extras::D2DrlgStrc;
+using imports::extras::D2ActiveRoomStrc;
+using imports::extras::D2DrlgActStrc;
+using imports::extras::D2DrlgLevelStrc;
+using imports::extras::D2DrlgRoomStrc;
+using imports::extras::D2DrlgStrc;
 
 // RAII helper: D2COMMON_AddRoomData on construction when pRoom is null,
 // D2COMMON_RemoveRoomData on destruction if we were the one to add it.

@@ -27,8 +27,8 @@
 
 namespace d2bs::game {
 
-using d2bs::imports::extras::D2ActiveRoomStrc;
-using d2bs::imports::extras::D2DrlgRoomStrc;
+using imports::extras::D2ActiveRoomStrc;
+using imports::extras::D2DrlgRoomStrc;
 
 namespace {
 
@@ -170,14 +170,14 @@ Room Room::GetNext() const {
     auto* drlgRoom = AsDrlgRoom(ResolvePtr());
     if (drlgRoom == nullptr)
         return Room();
-    return Room::FromPtr(drlgRoom->pDrlgRoomNext);
+    return FromPtr(drlgRoom->pDrlgRoomNext);
 }
 
 Room Room::GetFirst() const {
     auto* drlgRoom = AsDrlgRoom(ResolvePtr());
     if (drlgRoom == nullptr || drlgRoom->pLevel == nullptr)
         return Room();
-    return Room::FromPtr(drlgRoom->pLevel->pFirstRoomEx);
+    return FromPtr(drlgRoom->pLevel->pFirstRoomEx);
 }
 
 std::vector<Room> Room::GetNearby() const {
@@ -189,7 +189,7 @@ std::vector<Room> Room::GetNearby() const {
     out.reserve(count);
     for (size_t i = 0; i < count; ++i) {
         if (auto* neighbour = drlgRoom->ppRoomsNear[i]) {
-            out.push_back(Room::FromPtr(neighbour));
+            out.push_back(FromPtr(neighbour));
         }
     }
     return out;
@@ -345,7 +345,7 @@ bool Room::Reveal(bool drawPresets) const {
         if (pathRoom != nullptr && pathRoom->pDrlgRoom != nullptr && pathRoom->pDrlgRoom->pLevel != nullptr &&
             static_cast<uint32_t>(pathRoom->pDrlgRoom->pLevel->nLevelId) != targetLevel) {
             playerLevelNo = static_cast<uint32_t>(pathRoom->pDrlgRoom->pLevel->nLevelId);
-            *imports::d2client::gpAutomapLayer = d2bs::asm_thunks::InitAutomapLayerForLevel(targetLevel);
+            *imports::d2client::gpAutomapLayer = asm_thunks::InitAutomapLayerForLevel(targetLevel);
             switched = true;
         }
         imports::d2client::AUTOMAP_RevealRoom(activeRoom, /*dwClipFlag=*/1U, *imports::d2client::gpAutomapLayer);
@@ -353,7 +353,7 @@ bool Room::Reveal(bool drawPresets) const {
             DrawPresetsForRoom(drlgRoom);
         }
         if (switched) {
-            d2bs::asm_thunks::InitAutomapLayerForLevel(playerLevelNo);
+            asm_thunks::InitAutomapLayerForLevel(playerLevelNo);
         }
         return true;
     });

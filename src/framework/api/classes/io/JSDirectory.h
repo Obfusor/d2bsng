@@ -91,7 +91,7 @@ class JSDirectory : public V8ClassBase<JSDirectory, DirectoryData> {
                 }
 
                 auto relativePath = (data->path / name).string();
-                auto fullPath = d2bs::config::GetPathRelScript(relativePath);
+                auto fullPath = config::GetPathRelScript(relativePath);
                 if (fullPath.empty()) {
                     v8_error::ThrowError(isolate, "Invalid directory path");
                     return;
@@ -132,7 +132,7 @@ class JSDirectory : public V8ClassBase<JSDirectory, DirectoryData> {
                     return;
                 }
 
-                auto fullPath = d2bs::config::GetPathRelScript(data->path.string());
+                auto fullPath = config::GetPathRelScript(data->path.string());
                 if (fullPath.empty()) {
                     v8_error::ThrowError(isolate, "Invalid directory path");
                     return;
@@ -185,7 +185,7 @@ class JSDirectory : public V8ClassBase<JSDirectory, DirectoryData> {
                     pattern = v8_convert::ToString(isolate, args[0]);
                 }
 
-                auto fullPath = d2bs::config::GetPathRelScript(data->path.string());
+                auto fullPath = config::GetPathRelScript(data->path.string());
                 if (fullPath.empty()) {
                     args.GetReturnValue().Set(v8::Array::New(isolate, 0));
                     return;
@@ -226,7 +226,7 @@ class JSDirectory : public V8ClassBase<JSDirectory, DirectoryData> {
                     pattern = v8_convert::ToString(isolate, args[0]);
                 }
 
-                auto fullPath = d2bs::config::GetPathRelScript(data->path.string());
+                auto fullPath = config::GetPathRelScript(data->path.string());
                 if (fullPath.empty()) {
                     args.GetReturnValue().Set(v8::Array::New(isolate, 0));
                     return;

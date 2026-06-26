@@ -30,7 +30,7 @@ class ConsolePanel : public Panel {
     void Draw() override;
 
     // Append an EvaluateResult-source message. Render-thread only.
-    void Append(const d2bs::game::console::Message& msg);
+    void Append(const game::console::Message& msg);
 
     // Disambiguates input lines (no level - typed by the user) from log
     // lines (which carry a MessageLevel). Without this we couldn't render

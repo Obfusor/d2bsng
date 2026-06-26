@@ -5,7 +5,6 @@
 #include <v8.h>
 #include <magic_enum/magic_enum.hpp>
 
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -13,7 +12,6 @@
 
 #include "api/core/V8InstanceTracker.h"
 #include "components/console/Theme.h"
-#include "components/script/Commands.h"
 #include "components/script/Script.h"
 #include "components/script/ScriptEngine.h"
 
@@ -86,7 +84,7 @@ struct HeapTotals {
     uint64_t totalHandles = 0;
 };
 
-void DrawObjectsTooltipBody(const d2bs::api::ClassCountMap& snapshot) {
+void DrawObjectsTooltipBody(const api::ClassCountMap& snapshot) {
     if (snapshot.empty()) {
         ImGui::TextDisabled("(no live native objects)");
         return;
@@ -110,8 +108,8 @@ void OpenCellTooltip(BodyFn&& body) {
     ImGui::EndTooltip();
 }
 
-void DrawScriptRow(size_t rowIndex, const std::shared_ptr<d2bs::Script>& script, HeapTotals& heapTotalsOut,
-                   int64_t& totalObjectsOut, d2bs::api::ClassCountMap& mergedObjectsOut) {
+void DrawScriptRow(size_t rowIndex, const std::shared_ptr<Script>& script, HeapTotals& heapTotalsOut,
+                   int64_t& totalObjectsOut, api::ClassCountMap& mergedObjectsOut) {
     ImGui::TableNextRow();
 
     ImGui::TableNextColumn();
@@ -154,7 +152,7 @@ void DrawScriptRow(size_t rowIndex, const std::shared_ptr<d2bs::Script>& script,
     ImGui::TableNextColumn();
     {
         const bool hovered = IsCellHovered();
-        const auto objectsSnapshot = d2bs::api::V8InstanceTracker::Instance().Snapshot(script->GetThreadId());
+        const auto objectsSnapshot = api::V8InstanceTracker::Instance().Snapshot(script->GetThreadId());
         int32_t objectsTotal = 0;
         for (const auto& [name, count] : objectsSnapshot) {
             objectsTotal += count;
@@ -169,9 +167,9 @@ void DrawScriptRow(size_t rowIndex, const std::shared_ptr<d2bs::Script>& script,
 
     // ----- Actions -----
     ImGui::TableNextColumn();
-    const bool isConsole = script->GetMode() == d2bs::ScriptMode::Console;
-    const bool canPause = state == d2bs::ScriptState::Running && !isConsole;
-    const bool canResume = state == d2bs::ScriptState::Paused && !isConsole;
+    const bool isConsole = script->GetMode() == ScriptMode::Console;
+    const bool canPause = state == ScriptState::Running && !isConsole;
+    const bool canResume = state == ScriptState::Paused && !isConsole;
 
     // Use the row index for the per-row PushID instead of tid - stopped
     // scripts can share a stale tid (e.g. 0 for never-started threads),
@@ -182,11 +180,11 @@ void DrawScriptRow(size_t rowIndex, const std::shared_ptr<d2bs::Script>& script,
         // for console mode (Script.cpp), so raw Stop() leaves the entry in
         // scripts_. RestartConsoleScript stops + erases + respawns properly.
         if (ImGui::SmallButton("Restart")) {
-            d2bs::ScriptEngine::Instance().RestartConsoleScript();
+            ScriptEngine::Instance().RestartConsoleScript();
         }
     } else {
-        const bool canStop = state == d2bs::ScriptState::Starting || state == d2bs::ScriptState::Ready ||
-                             state == d2bs::ScriptState::Running || state == d2bs::ScriptState::Paused;
+        const bool canStop = state == ScriptState::Starting || state == ScriptState::Ready ||
+                             state == ScriptState::Running || state == ScriptState::Paused;
         ImGui::BeginDisabled(!canStop);
         if (ImGui::SmallButton("Stop")) {
             script->Stop();
@@ -207,7 +205,7 @@ void DrawScriptRow(size_t rowIndex, const std::shared_ptr<d2bs::Script>& script,
     }
     // GC button available wherever the script has an isolate alive - that's
     // anything past Starting, including Paused.
-    const bool canGc = state != d2bs::ScriptState::Stopped;
+    const bool canGc = state != ScriptState::Stopped;
     ImGui::SameLine();
     ImGui::BeginDisabled(!canGc);
     if (ImGui::SmallButton("GC")) {
@@ -217,17 +215,17 @@ void DrawScriptRow(size_t rowIndex, const std::shared_ptr<d2bs::Script>& script,
     ImGui::PopID();
 }
 
-void DrawTotalsRow(const std::vector<std::shared_ptr<d2bs::Script>>& scripts, const HeapTotals& heapTotals,
-                   int64_t totalObjects, const d2bs::api::ClassCountMap& mergedObjects) {
+void DrawTotalsRow(const std::vector<std::shared_ptr<Script>>& scripts, const HeapTotals& heapTotals,
+                   int64_t totalObjects, const api::ClassCountMap& mergedObjects) {
     int32_t pausableCount = 0;
     int32_t resumableCount = 0;
     for (const auto& script : scripts) {
-        if (script->GetMode() == d2bs::ScriptMode::Console) {
+        if (script->GetMode() == ScriptMode::Console) {
             continue;  // mass actions ignore the console
         }
-        if (script->GetState() == d2bs::ScriptState::Running) {
+        if (script->GetState() == ScriptState::Running) {
             ++pausableCount;
-        } else if (script->GetState() == d2bs::ScriptState::Paused) {
+        } else if (script->GetState() == ScriptState::Paused) {
             ++resumableCount;
         }
     }
@@ -268,14 +266,14 @@ void DrawTotalsRow(const std::vector<std::shared_ptr<d2bs::Script>>& scripts, co
     ImGui::TableNextColumn();
     ImGui::PushID("##totalsactions");
     if (ImGui::SmallButton("Stop all")) {
-        d2bs::ScriptEngine::Instance().StopAllScripts();
+        ScriptEngine::Instance().StopAllScripts();
     }
     if (pausableCount > 0) {
         ImGui::SameLine();
         if (ImGui::SmallButton("Pause all")) {
             for (const auto& script : scripts) {
-                if (script->GetMode() != d2bs::ScriptMode::Console &&
-                    script->GetState() == d2bs::ScriptState::Running) {
+                if (script->GetMode() != ScriptMode::Console &&
+                    script->GetState() == ScriptState::Running) {
                     script->Pause();
                 }
             }
@@ -285,7 +283,7 @@ void DrawTotalsRow(const std::vector<std::shared_ptr<d2bs::Script>>& scripts, co
         ImGui::SameLine();
         if (ImGui::SmallButton("Resume all")) {
             for (const auto& script : scripts) {
-                if (script->GetMode() != d2bs::ScriptMode::Console && script->GetState() == d2bs::ScriptState::Paused) {
+                if (script->GetMode() != ScriptMode::Console && script->GetState() == ScriptState::Paused) {
                     script->Resume();
                 }
             }
@@ -303,7 +301,7 @@ void DrawTotalsRow(const std::vector<std::shared_ptr<d2bs::Script>>& scripts, co
 }  // namespace
 
 void ScriptPanel::Draw() {
-    auto scripts = d2bs::ScriptEngine::Instance().GetAllScripts();
+    auto scripts = ScriptEngine::Instance().GetAllScripts();
     if (scripts.empty()) {
         ImGui::TextDisabled("No scripts running.");
         return;
@@ -326,7 +324,7 @@ void ScriptPanel::Draw() {
 
     HeapTotals heapTotals;
     int64_t totalObjects = 0;
-    d2bs::api::ClassCountMap mergedObjects;
+    api::ClassCountMap mergedObjects;
     std::ranges::sort(scripts, {}, [](const auto& script) { return script->GetName(); });
     for (size_t i = 0; i < scripts.size(); ++i) {
         DrawScriptRow(i, scripts[i], heapTotals, totalObjects, mergedObjects);

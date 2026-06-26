@@ -1,5 +1,6 @@
 #pragma once
 
+// ReSharper disable once CppUnusedIncludeDirective
 #include "D2MOOConfig.h"
 #include "ImportTypes.h"
 #include "game/Types.h"
@@ -20,12 +21,10 @@ struct D2GfxDataStrc;
 // NOLINTNEXTLINE(readability-identifier-naming) - matches D2MOO upstream type name
 struct SMSGHANDLER_PARAMS;
 #include <D2BitManip.h>           // D2BitBufferStrc
-#include <D2Constants.h>          // D2C_Difficulties
 #include <D2Inventory.h>          // D2InventoryStrc
 #include <D2Roster.h>             // D2RosterUnitStrc
 #include <D2Structs.OtherDLLs.h>  // D2AutomapCellStrc, D2AutomapLayerStrc
 #include <D2Waypoints.h>          // D2WaypointDataStrc
-#include <DataTbls/InvTbls.h>     // D2InventoryGridInfoStrc
 #include <Units/Units.h>          // D2UnitStrc
 #pragma clang diagnostic pop
 

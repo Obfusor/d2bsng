@@ -2,14 +2,12 @@
 
 #include "fakes/GameLoopCollaborators.h"
 #include "game/Level.h"
-#include "game/Party.h"
-#include "game/Unit.h"
 
 namespace d2bs::game {
 
 // === Game State ===
 GameState GetGameState() {
-    return d2bs::test::State().clientState;
+    return test::State().clientState;
 }
 bool IsGameReady() {
     return false;
@@ -161,7 +159,7 @@ bool TradeOK() {
 
 // === Game Actions ===
 void ExitGame() {
-    ++d2bs::test::State().exitGameCount;
+    ++test::State().exitGameCount;
 }
 bool ClickMapAt(uint32_t /*clickType*/, uint32_t /*shift*/, Point /*pos*/) {
     return false;
@@ -180,7 +178,7 @@ bool HasWaypoint(uint32_t /*waypointId*/) {
     return false;
 }
 bool IsTownByLevelNo(uint32_t levelNo) {
-    auto& s = d2bs::test::State();
+    auto& s = test::State();
     return s.isTown && levelNo == s.areaId;
 }
 std::string GetLocaleString(uint16_t /*localeId*/) {
@@ -211,7 +209,7 @@ ClickResult ClickContainerSlot(ClickButton /*button*/, Position /*gridPos*/, Ite
 }
 void ClickPartyMember(const Party& /*rosterUnit*/, PartyMode /*mode*/) {}
 void LeaveParty() {}
-uint32_t CheckUnitCollision(const game::Unit& /*unit1*/, const game::Unit& /*unit2*/, uint32_t /*mask*/) {
+uint32_t CheckUnitCollision(const Unit& /*unit1*/, const Unit& /*unit2*/, uint32_t /*mask*/) {
     return 0;
 }
 

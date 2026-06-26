@@ -2,8 +2,6 @@
 #include "JSDBStatement.h"
 #include "SQLiteBind.h"
 
-#include <cstdint>
-
 #include "components/config/AppConfig.h"
 
 namespace d2bs::api::classes {
@@ -66,7 +64,7 @@ void JSSQLite::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
             path = ":memory:";
         } else if (pathStr[0] != ':') {
             // Regular file path - must pass sandbox validation
-            auto sandboxed = d2bs::config::GetPathRelScript(pathStr);
+            auto sandboxed = config::GetPathRelScript(pathStr);
             if (sandboxed.empty()) {
                 v8_error::ThrowError(isolate, "Invalid file path");
                 return;

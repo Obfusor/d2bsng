@@ -34,7 +34,7 @@ struct ProfileData {
     std::string character;
     // Difficulty is stored as an INI integer (0-3, per reference 'spdifficulty')
     // but carried through the codebase as an enum so intent is explicit.
-    d2bs::game::Difficulty difficulty = d2bs::game::Difficulty::Normal;
+    game::Difficulty difficulty = game::Difficulty::Normal;
     // Reference stores MaxLoginTime / MaxCharSelectTime in seconds in the INI
     // and *1000s to ms at load; we keep the ms values as chrono::milliseconds
     // so arithmetic at the consumer (Login state machine) is type-safe.

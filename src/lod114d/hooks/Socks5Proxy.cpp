@@ -11,7 +11,6 @@
 
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -207,7 +206,7 @@ bool ProxyConnect(SOCKET s, const sockaddr_in& proxy) {
         return false;
     }
     int soErr = 0;
-    int len = static_cast<int>(sizeof(soErr));
+    int len = sizeof(soErr);
     if (getsockopt(s, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&soErr), &len) != 0) {
         return false;
     }
@@ -316,12 +315,12 @@ int WSAAPI HookedConnect(SOCKET s, const sockaddr* name, int namelen) {
     // a malformed / non-IPv4 address, or a non-TCP socket. The last guard matters:
     // the game's local-IP discovery connects a UDP socket to an echo host, and
     // SOCKS5 CMD CONNECT is TCP-only.
-    if (!config || d2bs::proxy::IsThreadBypassed() || name == nullptr ||
+    if (!config || proxy::IsThreadBypassed() || name == nullptr ||
         namelen < static_cast<int>(sizeof(sockaddr_in)) || name->sa_family != AF_INET) {
         return realConnect(s, name, namelen);
     }
     int sockType = 0;
-    int optLen = static_cast<int>(sizeof(sockType));
+    int optLen = sizeof(sockType);
     if (getsockopt(s, SOL_SOCKET, SO_TYPE, reinterpret_cast<char*>(&sockType), &optLen) != 0 ||
         sockType != SOCK_STREAM) {
         return realConnect(s, name, namelen);
@@ -358,7 +357,7 @@ void Install() {
     // Dedicated "socks5" logger over the framework's sinks. GetLogger copies the
     // default logger's sinks on first use; calling it here (after Framework's
     // SetupLogging, well before any connect) is late enough to catch them.
-    logger = d2bs::utils::GetLogger("socks5");
+    logger = utils::GetLogger("socks5");
 
     auto parsed = ParseProxyUrl(*opts.proxy);
     if (!parsed) {

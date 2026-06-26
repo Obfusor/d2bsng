@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <cstring>
 
 #include <v8.h>
@@ -17,7 +16,7 @@
 namespace d2bs::api::classes {
 
 // V8 binding for game::Room (map tile).
-class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
+class JSRoom : public V8ClassBase<JSRoom, game::Room> {
    public:
     static constexpr std::string_view ClassName = "Room";
 
@@ -160,7 +159,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
         /// @returns {boolean} - true on successful reveal; undefined when game not ready or room unresolved.
         Method(
             isolate, proto, "reveal", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-                if (!d2bs::game::IsGameReady()) {
+                if (!game::IsGameReady()) {
                     return;
                 }
                 auto* data = Unwrap(args.This());
@@ -173,7 +172,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
                     drawPresets = args[0]->BooleanValue(args.GetIsolate());
                 }
 
-                auto lock = d2bs::game::Bridge::Lock();
+                auto lock = game::Bridge::Lock();
                 args.GetReturnValue().Set(data->Reveal(drawPresets));
             });
 
@@ -186,7 +185,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
         Method(
             isolate, proto, "getPresetUnits", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
                 auto* isolate = args.GetIsolate();
-                if (!d2bs::game::IsGameReady()) {
+                if (!game::IsGameReady()) {
                     return;
                 }
                 auto context = isolate->GetCurrentContext();
@@ -207,12 +206,12 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
                     nClass = v8_convert::ToUint32(isolate, args[1]);
                 }
 
-                auto lock = d2bs::game::Bridge::Lock();
+                auto lock = game::Bridge::Lock();
                 auto presets = data->GetPresetUnits(nType, nClass);
                 auto array = v8::Array::New(isolate, static_cast<int32_t>(presets.size()));
 
                 for (uint32_t i = 0; i < presets.size(); ++i) {
-                    auto puData = std::make_unique<d2bs::game::PresetUnitInfo>(presets[i]);
+                    auto puData = std::make_unique<game::PresetUnitInfo>(presets[i]);
                     auto obj = JSPresetUnit::CreateInstance(isolate, context, std::move(puData));
                     if (obj.IsEmpty()) {
                         v8_error::ThrowError(isolate, "Failed to build preset unit array");
@@ -231,7 +230,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
         Method(
             isolate, proto, "getCollision", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
                 auto* isolate = args.GetIsolate();
-                if (!d2bs::game::IsGameReady()) {
+                if (!game::IsGameReady()) {
                     return;
                 }
                 auto context = isolate->GetCurrentContext();
@@ -240,7 +239,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
                     return;  // Returns undefined - reference returns undefined when room is null
                 }
 
-                auto lock = d2bs::game::Bridge::Lock();
+                auto lock = game::Bridge::Lock();
                 auto collision = data->GetCollision();
                 auto outerArray = v8::Array::New(isolate, static_cast<int32_t>(collision.size()));
 
@@ -265,7 +264,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
         Method(
             isolate, proto, "getCollisionA", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
                 auto* isolate = args.GetIsolate();
-                if (!d2bs::game::IsGameReady()) {
+                if (!game::IsGameReady()) {
                     return;
                 }
                 auto* data = Unwrap(args.This());
@@ -301,7 +300,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
                 auto array = v8::Array::New(isolate, static_cast<int32_t>(nearby.size()));
 
                 for (uint32_t i = 0; i < nearby.size(); ++i) {
-                    auto obj = CreateInstance(isolate, context, std::make_unique<d2bs::game::Room>(nearby[i]));
+                    auto obj = CreateInstance(isolate, context, std::make_unique<game::Room>(nearby[i]));
                     if (obj.IsEmpty()) {
                         v8_error::ThrowError(isolate, "Failed to build nearby room array");
                         return;
@@ -325,7 +324,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
             isolate, proto, "getStat", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
                 auto* isolate = args.GetIsolate();
                 args.GetReturnValue().SetNull();
-                if (!d2bs::game::IsGameReady()) {
+                if (!game::IsGameReady()) {
                     return;
                 }
                 if (args.Length() < 1 || !args[0]->IsNumber()) {
@@ -336,7 +335,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
                     return;
                 }
                 int32_t nStat = v8_convert::ToInt32(isolate, args[0]);
-                auto lock = d2bs::game::Bridge::Lock();
+                auto lock = game::Bridge::Lock();
                 args.GetReturnValue().Set(data->GetStat(nStat));
             });
 
@@ -356,7 +355,7 @@ class JSRoom : public V8ClassBase<JSRoom, d2bs::game::Room> {
                 if (!first) {
                     return;
                 }
-                auto obj = CreateInstance(isolate, context, std::make_unique<d2bs::game::Room>(first));
+                auto obj = CreateInstance(isolate, context, std::make_unique<game::Room>(first));
                 if (obj.IsEmpty())
                     return;
                 args.GetReturnValue().Set(obj);

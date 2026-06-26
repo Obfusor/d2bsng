@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 namespace d2bs::game {
 
 // Stat IDs referenced in the API layer.

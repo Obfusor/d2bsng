@@ -8,9 +8,9 @@
 
 namespace d2bs::framework::console::theme {
 
-using d2bs::game::console::ColorCode;
-using d2bs::game::console::MessageLevel;
-using d2bs::game::console::MessageSource;
+using game::console::ColorCode;
+using game::console::MessageLevel;
+using game::console::MessageSource;
 
 ImVec4 ColorForCode(ColorCode code) {
     switch (code) {
@@ -62,19 +62,19 @@ ImVec4 ColorForLevel(MessageLevel level) {
     return {0.85F, 0.85F, 0.85F, 1.00F};
 }
 
-ImVec4 ColorForState(d2bs::ScriptState state) {
+ImVec4 ColorForState(ScriptState state) {
     switch (state) {
-        case d2bs::ScriptState::Starting:
+        case ScriptState::Starting:
             return {1.00F, 0.85F, 0.30F, 1.00F};
-        case d2bs::ScriptState::Ready:
+        case ScriptState::Ready:
             return {0.55F, 0.85F, 1.00F, 1.00F};
-        case d2bs::ScriptState::Running:
+        case ScriptState::Running:
             return {0.35F, 0.85F, 0.35F, 1.00F};
-        case d2bs::ScriptState::Paused:
+        case ScriptState::Paused:
             return {1.00F, 1.00F, 0.30F, 1.00F};
-        case d2bs::ScriptState::Stopping:
+        case ScriptState::Stopping:
             return {1.00F, 0.55F, 0.15F, 1.00F};
-        case d2bs::ScriptState::Stopped:
+        case ScriptState::Stopped:
             return {0.60F, 0.60F, 0.60F, 1.00F};
     }
     return {0.85F, 0.85F, 0.85F, 1.00F};

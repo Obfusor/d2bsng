@@ -2,8 +2,6 @@
 #include "JSSQLite.h"
 #include "SQLiteBind.h"
 
-#include <cstdint>
-
 namespace d2bs::api::classes {
 
 void DBStatementData::Finalize() {

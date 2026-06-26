@@ -2,7 +2,6 @@
 
 #include <v8.h>
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <variant>
@@ -33,8 +32,8 @@ inline std::optional<std::string> ResolveTableArg(v8::Isolate* isolate, v8::Loca
 
 // Convert one resolved cell to a JS value. Returns an empty handle for an empty
 // / unsupported cell (monostate) so callers can map it to undefined or omit it.
-inline v8::Local<v8::Value> TxtValueToV8(v8::Isolate* isolate, const d2bs::game::TxtValue& value) {
-    static_assert(std::variant_size_v<d2bs::game::TxtValue> == 3,
+inline v8::Local<v8::Value> TxtValueToV8(v8::Isolate* isolate, const game::TxtValue& value) {
+    static_assert(std::variant_size_v<game::TxtValue> == 3,
                   "TxtValue alternatives changed - update the conversion below");
     if (const auto* n = std::get_if<int64_t>(&value)) {
         return v8_convert::ToV8(isolate, static_cast<double>(*n));
@@ -62,7 +61,7 @@ inline v8::Local<v8::Value> ResolveTxtCell(v8::Isolate* isolate, const std::stri
     } else {
         return v8::Undefined(isolate);
     }
-    auto cell = TxtValueToV8(isolate, d2bs::game::GetTxtValue(tableName, row, columnName));
+    auto cell = TxtValueToV8(isolate, game::GetTxtValue(tableName, row, columnName));
     return cell.IsEmpty() ? v8::Local<v8::Value>(v8::Undefined(isolate)) : cell;
 }
 
@@ -76,13 +75,13 @@ inline v8::Local<v8::Value> BuildTxtRow(v8::Isolate* isolate, v8::Local<v8::Cont
     if (!columns) {
         return v8::Undefined(isolate);
     }
-    auto rowCount = d2bs::game::GetTxtTableRowCount(tableName);
+    auto rowCount = game::GetTxtTableRowCount(tableName);
     if (!rowCount || row >= *rowCount) {
         return v8::Undefined(isolate);
     }
     auto obj = v8::Object::New(isolate);
     for (const auto& column : *columns) {
-        auto cell = TxtValueToV8(isolate, d2bs::game::GetTxtValue(tableName, row, column));
+        auto cell = TxtValueToV8(isolate, game::GetTxtValue(tableName, row, column));
         if (!cell.IsEmpty()) {
             obj->Set(context, v8_convert::ToV8(isolate, column), cell).Check();
         }

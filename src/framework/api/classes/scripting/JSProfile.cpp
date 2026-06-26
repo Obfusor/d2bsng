@@ -44,7 +44,7 @@ void JSProfile::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
     // a construct call so the rest of this body runs against a real instance;
     // when disabled, require `new` like an ordinary class.
     if (!args.IsConstructCall()) {
-        if (!d2bs::config::CompatibilityFlags::Instance().IsEnabled("profileCallWithoutNew")) {
+        if (!config::CompatibilityFlags::Instance().IsEnabled("profileCallWithoutNew")) {
             v8_error::ThrowTypeError(isolate, "Profile must be called with 'new'");
             return;
         }
@@ -73,12 +73,12 @@ void JSProfile::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
     // "ERROR" string defaults and returns a stub. That silently hides the
     // bug; explicit throws are clearer.
     if (argc == 0) {
-        auto name = d2bs::config::GetAppConfig().GetProfileName();
+        auto name = config::GetAppConfig().GetProfileName();
         if (name.empty()) {
             v8_error::ThrowError(isolate, "No active profile!");
             return;
         }
-        auto loaded = d2bs::profile::Load(name);
+        auto loaded = profile::Load(name);
         if (!loaded) {
             v8_error::ThrowError(isolate, "Profile does not exist");
             return;
@@ -90,7 +90,7 @@ void JSProfile::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
     // of returning an "ERROR"-filled stub.
     else if (argc == 1 && args[0]->IsString()) {
         std::string name = v8_convert::ToString(isolate, args[0]);
-        auto loaded = d2bs::profile::Load(name);
+        auto loaded = profile::Load(name);
         if (!loaded) {
             v8_error::ThrowError(isolate, "Profile does not exist");
             return;
@@ -106,7 +106,7 @@ void JSProfile::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
             int32_t diff = std::clamp(args[2]->Int32Value(context).FromMaybe(0), 0, 3);
             data->type = ProfileType::SinglePlayer;
             data->character = charname;
-            data->difficulty = static_cast<d2bs::game::Difficulty>(diff);
+            data->difficulty = static_cast<game::Difficulty>(diff);
         }
         // Profile(ProfileType.tcpIpHost, charname, diff)
         else if (type == static_cast<int32_t>(ProfileType::TcpIpHost)) {
@@ -115,7 +115,7 @@ void JSProfile::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
             int32_t diff = std::clamp(args[2]->Int32Value(context).FromMaybe(0), 0, 3);
             data->type = ProfileType::TcpIpHost;
             data->character = charname;
-            data->difficulty = static_cast<d2bs::game::Difficulty>(diff);
+            data->difficulty = static_cast<game::Difficulty>(diff);
         }
         // Profile(ProfileType.tcpIpJoin, charname, ip)
         else if (type == static_cast<int32_t>(ProfileType::TcpIpJoin)) {
@@ -276,8 +276,8 @@ void JSProfile::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTe
                 v8_error::ThrowError(isolate, "Invalid profile object");
                 return;
             }
-            auto result = d2bs::game::Login(*data);
-            if (result.status != d2bs::game::LoginStatus::Success) {
+            auto result = game::Login(*data);
+            if (result.status != game::LoginStatus::Success) {
                 v8_error::ThrowError(isolate, result.errorMessage);
             }
         });

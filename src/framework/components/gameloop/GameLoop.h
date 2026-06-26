@@ -26,7 +26,7 @@ struct Snapshot {
     // Null sentinel: "no observation yet". The first real tick transitions
     // Null -> (whatever the game is in), which DriveScriptLifecycle treats as
     // a legitimate entry transition.
-    d2bs::game::GameState state = d2bs::game::GameState::Null;
+    game::GameState state = game::GameState::Null;
     std::optional<uint32_t> playerId;
     std::optional<uint32_t> hp;
     std::optional<uint32_t> mp;

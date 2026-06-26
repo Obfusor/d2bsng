@@ -1,7 +1,6 @@
 #include "components/dde/DdeService.h"
 
 #include <array>
-#include <cstdio>
 #include <future>
 #include <utility>
 
@@ -81,7 +80,7 @@ bool DdeService::Start(Handler handler) {
     auto startupFuture = startupPromise.get_future();
 
     pumpThread_ = std::jthread([this, promise = std::move(startupPromise)]() mutable {
-        d2bs::thread_utils::SetThreadDescription("d2bs DDE pump");
+        thread_utils::SetThreadDescription("d2bs DDE pump");
 
         UINT err = DdeInitializeA(&idInst_, &DdeService::StaticCallback, SERVER_FLAGS, 0);
         if (err != DMLERR_NO_ERROR) {

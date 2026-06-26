@@ -19,7 +19,6 @@
 
 #include "components/config/AppConfig.h"
 #include "game/Console.h"
-#include "game/Constants.h"
 #include "game/Finders.h"
 #include "game/GameHelpers.h"
 #include "game/Types.h"
@@ -27,8 +26,8 @@
 
 namespace d2bs::framework::characterstate {
 
-namespace game = d2bs::game;
-namespace config = d2bs::config;
+namespace game = game;
+namespace config = config;
 
 namespace {
 
@@ -429,7 +428,7 @@ json BuildItem(const ItemRec& rec, const std::string& header) {
     item["gid"] = rec.gid;
     item["ethereal"] = (rec.flags & ITEM_FLAG_ETHEREAL) != 0U;
     item["quality"] = rec.quality;
-    item["location"] = static_cast<int32_t>(rec.loc);
+    item["location"] = rec.loc;
     // Slot containers (equipped/merc) carry the equip-location in x with y = 0;
     // grid containers carry the cell. Both come straight from Unit::Pos().
     item["x"] = rec.x;
@@ -475,7 +474,7 @@ json BuildIdentity(const game::Unit& player) {
     identity["charClass"] = static_cast<int32_t>(player.ClassId());
     identity["level"] = player.CharLevel();
     identity["area"] = player.Area();
-    identity["difficulty"] = static_cast<int32_t>(game::GetDifficulty());
+    identity["difficulty"] = game::GetDifficulty();
     // hardcore/expansion are derivable from the top-level charFlags; ladder is a
     // separate BnetData flag, so it stays here.
     identity["ladder"] = game::IsLadder().value_or(0) != 0;

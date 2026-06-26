@@ -83,14 +83,14 @@ class Script : public std::enable_shared_from_this<Script> {
     // client is in `state`.  InGame-mode scripts match GameState::InGame,
     // OutOfGame-mode match GameState::Menu, Console-mode matches always.
     // Transitional client states (Busy / Null) match nothing.
-    [[nodiscard]] bool DrawablesVisibleIn(d2bs::game::GameState state) const {
+    [[nodiscard]] bool DrawablesVisibleIn(game::GameState state) const {
         switch (mode_) {
             case ScriptMode::Console:
                 return true;
             case ScriptMode::OutOfGame:
-                return state == d2bs::game::GameState::Menu;
+                return state == game::GameState::Menu;
             case ScriptMode::InGame:
-                return state == d2bs::game::GameState::InGame;
+                return state == game::GameState::InGame;
         }
         return false;
     }
@@ -263,5 +263,3 @@ class Script : public std::enable_shared_from_this<Script> {
 };
 
 }  // namespace d2bs
-
-#include "ScriptLogger.h"

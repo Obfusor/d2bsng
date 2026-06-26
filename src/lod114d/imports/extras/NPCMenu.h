@@ -35,6 +35,6 @@ static_assert(sizeof(NPCMenu) == 0x27, "NPCMenu must be 0x27 bytes");
 }  // namespace d2bs::imports::extras
 
 namespace d2bs::game {
-using ::d2bs::imports::extras::NPCMenu;
+using imports::extras::NPCMenu;
 }  // namespace d2bs::game
 // NOLINTEND(readability-identifier-naming)

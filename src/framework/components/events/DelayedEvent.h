@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <cstdint>
 #include "BaseEvent.h"
 
 namespace d2bs {

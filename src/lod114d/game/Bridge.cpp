@@ -6,18 +6,9 @@
 
 // Each include instantiates its inline GameFunc/GameVar/GameAsmFunc objects in this TU; their constructors
 // self-register with imports::Registry. Removing any include silently drops all imports in that namespace.
-#include "imports/BnClient.h"
 #include "imports/D2Client.h"
-#include "imports/D2Cmp.h"
 #include "imports/D2Common.h"
-#include "imports/D2Game.h"
-#include "imports/D2Gfx.h"
-#include "imports/D2Lang.h"
-#include "imports/D2Launch.h"
-#include "imports/D2Multi.h"
-#include "imports/D2Net.h"
 #include "imports/D2Win.h"
-#include "imports/Storm.h"
 
 #include <Windows.h>
 #include <atomic>

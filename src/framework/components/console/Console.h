@@ -16,6 +16,6 @@ void DrawFrame();
 // Any-thread message intake. Routed from each port's
 // d2bs::game::console::OnMessage shim. Bounded - messages drop the oldest
 // entries when the queue grows past the limit.
-void OnMessage(const d2bs::game::console::Message& msg);
+void OnMessage(const game::console::Message& msg);
 
 }  // namespace d2bs::framework::console

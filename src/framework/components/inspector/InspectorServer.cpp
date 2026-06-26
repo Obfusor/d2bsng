@@ -22,7 +22,7 @@ namespace d2bs::framework::inspector {
 namespace {
 
 const std::shared_ptr<spdlog::logger>& Logger() {
-    static std::shared_ptr<spdlog::logger> logger = d2bs::utils::GetLogger("inspector");
+    static std::shared_ptr<spdlog::logger> logger = utils::GetLogger("inspector");
     return logger;
 }
 
@@ -34,18 +34,18 @@ const std::shared_ptr<spdlog::logger>& Logger() {
 // The probe socket is closed before the real bind; the gap is harmless (worst
 // case is the pre-probe behavior).
 bool IsPortFree(uint16_t port) {
-    SOCKET probe = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    SOCKET probe = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (probe == INVALID_SOCKET) {
         return false;
     }
     BOOL exclusive = TRUE;
-    ::setsockopt(probe, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, reinterpret_cast<const char*>(&exclusive), sizeof(exclusive));
+    setsockopt(probe, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, reinterpret_cast<const char*>(&exclusive), sizeof(exclusive));
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     addr.sin_port = htons(port);
-    const bool isFree = ::bind(probe, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) != SOCKET_ERROR;
-    ::closesocket(probe);
+    const bool isFree = bind(probe, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) != SOCKET_ERROR;
+    closesocket(probe);
     return isFree;
 }
 
@@ -64,7 +64,7 @@ class DualModeServer : public ix::WebSocketServer {
    public:
     using HttpHandler = std::function<ix::HttpResponsePtr(const ix::HttpRequestPtr&)>;
 
-    DualModeServer(int port, const std::string& host) : ix::WebSocketServer(port, host) {}
+    DualModeServer(int port, const std::string& host) : WebSocketServer(port, host) {}
 
     void SetHttpHandler(HttpHandler handler) { httpHandler_ = std::move(handler); }
 

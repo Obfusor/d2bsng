@@ -1,18 +1,14 @@
 #pragma once
 
 #include <v8.h>
-#include <cstdint>
-#include <string>
 #include "api/core/V8Class.h"
-#include "api/core/V8Convert.h"
 #include "api/core/V8Error.h"
-#include "api/globals/Constants.h"
 #include "components/profile/ProfileData.h"
 
 namespace d2bs::api::classes {
 
-using d2bs::config::ProfileData;
-using d2bs::config::ProfileType;
+using config::ProfileData;
+using config::ProfileType;
 
 // Profile class - represents a login profile configuration
 // Properties: type, ip, username, gateway, character, difficulty, maxLoginTime, maxCharTime

@@ -100,7 +100,7 @@ void JSSandbox::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTe
             }
 
             // Normalize for case-insensitive dedup on Windows (matches Script::Include).
-            std::string filename = d2bs::utils::ToLower(v8_convert::ToString(isolate, args[0]));
+            std::string filename = utils::ToLower(v8_convert::ToString(isolate, args[0]));
 
             // Check if already included
             if (data->includedFiles.contains(filename)) {
@@ -109,7 +109,7 @@ void JSSandbox::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTe
             }
 
             // Resolve path from libs/
-            auto resolved = d2bs::config::GetPathRelScript("libs/" + filename);
+            auto resolved = config::GetPathRelScript("libs/" + filename);
             if (resolved.empty() || !std::filesystem::exists(resolved)) {
                 args.GetReturnValue().SetFalse();
                 return;
@@ -165,7 +165,7 @@ void JSSandbox::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTe
                 return;
             }
 
-            std::string filename = d2bs::utils::ToLower(v8_convert::ToString(isolate, args[0]));
+            std::string filename = utils::ToLower(v8_convert::ToString(isolate, args[0]));
             args.GetReturnValue().Set(data->includedFiles.contains(filename));
         });
 
@@ -224,7 +224,7 @@ v8::Intercepted JSSandbox::NamedPropertyQuery(v8::Local<v8::Name> property,
 
     auto context = data->context.Get(info.GetIsolate());
     if (inner->Has(context, property).FromMaybe(false)) {
-        info.GetReturnValue().Set(static_cast<int32_t>(v8::PropertyAttribute::None));
+        info.GetReturnValue().Set(v8::PropertyAttribute::None);
         return v8::Intercepted::kYes;
     }
     return v8::Intercepted::kNo;

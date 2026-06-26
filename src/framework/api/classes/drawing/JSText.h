@@ -30,7 +30,7 @@ class JSText : public JSDrawableBase<JSText, TextDrawable> {
     static void New(const v8::FunctionCallbackInfo<v8::Value>& args) {
         V8_CLASS_CTOR_PROLOGUE;
 
-        auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+        auto* script = ScriptEngine::Instance().GetScript(isolate);
         if (!script) {
             v8_error::ThrowError(isolate, "Text: no owning script");
             return;

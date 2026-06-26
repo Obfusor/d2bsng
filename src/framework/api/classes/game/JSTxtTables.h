@@ -2,7 +2,6 @@
 
 #include <v8.h>
 
-#include <cstdint>
 #include <string_view>
 
 #include "api/core/V8Class.h"
@@ -37,9 +36,9 @@ class JSTxtTables : public V8ClassBase<JSTxtTables, TxtTablesData> {
             isolate, tpl, "names", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
                 auto* isolate = args.GetIsolate();
                 auto context = isolate->GetCurrentContext();
-                auto arr = v8::Array::New(isolate, static_cast<int32_t>(d2bs::game::TXT_TABLE_NAMES.size()));
+                auto arr = v8::Array::New(isolate, game::TXT_TABLE_NAMES.size());
                 uint32_t i = 0;
-                for (const auto& name : d2bs::game::TXT_TABLE_NAMES) {
+                for (const auto& name : game::TXT_TABLE_NAMES) {
                     arr->Set(context, i++, v8_convert::ToV8(isolate, name)).Check();
                 }
                 args.GetReturnValue().Set(arr);
@@ -59,7 +58,7 @@ class JSTxtTables : public V8ClassBase<JSTxtTables, TxtTablesData> {
                 if (!table) {
                     return;
                 }
-                if (auto count = d2bs::game::GetTxtTableRowCount(*table)) {
+                if (auto count = game::GetTxtTableRowCount(*table)) {
                     args.GetReturnValue().Set(v8_convert::ToV8(isolate, *count));
                 }
             });

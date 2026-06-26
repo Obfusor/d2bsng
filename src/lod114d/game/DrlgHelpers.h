@@ -34,12 +34,12 @@ namespace d2bs::game {
 // `D2UnitStrc::pDrlgAct` is typed as D2MOO's `::D2DrlgActStrc*`, but the bytes
 // at that address follow the 1.14d allocation modeled by
 // `extras::D2DrlgActStrc`. Reinterpret at the unit boundary.
-inline d2bs::imports::extras::D2DrlgLevelStrc* FindLevelInChain(uint32_t levelId) {
+inline D2DrlgLevelStrc* FindLevelInChain(uint32_t levelId) {
     auto* player = imports::d2client::UNITS_GetPlayerUnit();
     if (player == nullptr) {
         return nullptr;
     }
-    auto* act = reinterpret_cast<d2bs::imports::extras::D2DrlgActStrc*>(player->pDrlgAct);
+    auto* act = reinterpret_cast<D2DrlgActStrc*>(player->pDrlgAct);
     if (act == nullptr || act->pDrlg == nullptr) {
         return nullptr;
     }
@@ -62,7 +62,7 @@ inline d2bs::imports::extras::D2DrlgLevelStrc* FindLevelInChain(uint32_t levelId
 // Walk a level's room chain matching the (subtile) position stored on the
 // Room handle. Both sides compare nTileXPos/nTileYPos directly - these are
 // the same units that Room::FromPtr extracts.
-inline d2bs::imports::extras::D2DrlgRoomStrc* FindRoomInLevelByPos(d2bs::imports::extras::D2DrlgLevelStrc* lvl,
+inline D2DrlgRoomStrc* FindRoomInLevelByPos(D2DrlgLevelStrc* lvl,
                                                                    Position pos) {
     if (lvl == nullptr) {
         return nullptr;
@@ -79,7 +79,7 @@ inline d2bs::imports::extras::D2DrlgRoomStrc* FindRoomInLevelByPos(d2bs::imports
 // special automap cells per (type, txtFileNo, level) - special NPC icons,
 // the Lower Kurast uberchest hint, the Anya/Frozen River markers, etc.
 // Returns the chosen cell number for `preset`, or -1 to skip.
-inline int32_t PickPresetCellNo(const d2bs::imports::extras::D2PresetUnitStrc* preset, uint32_t levelNo) {
+inline int32_t PickPresetCellNo(const imports::extras::D2PresetUnitStrc* preset, uint32_t levelNo) {
     int32_t cell = -1;
     if (preset->nUnitType == 1) {  // Special NPCs
         if (preset->nIndex == 256) {
@@ -120,7 +120,7 @@ inline int32_t PickPresetCellNo(const d2bs::imports::extras::D2PresetUnitStrc* p
 // layer. Caller is responsible for ensuring the layer is the right one for
 // `drlgRoom->pLevel` and that this runs on the game thread (the engine
 // touches AutomapLayer / NewAutomapCell / AddAutomapCell each frame).
-inline void DrawPresetsForRoom(d2bs::imports::extras::D2DrlgRoomStrc* drlgRoom) {
+inline void DrawPresetsForRoom(D2DrlgRoomStrc* drlgRoom) {
     if (drlgRoom == nullptr || drlgRoom->pLevel == nullptr) {
         return;
     }

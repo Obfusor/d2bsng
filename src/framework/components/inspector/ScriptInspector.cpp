@@ -65,7 +65,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         // thread, which opts into the speedhack (system_clock::now() reads the
         // hooked GetSystemTimePreciseAsFileTime), so bypass scaling here -
         // otherwise timestamps would race ahead at speed > 1.
-        d2bs::speedhack::SpeedhackDisabledScope realTime;
+        speedhack::SpeedhackDisabledScope realTime;
         return std::chrono::duration<double, std::milli>(std::chrono::system_clock::now().time_since_epoch()).count();
     }
     // Map a Windows script path (e.g. C:\d2bs\libs\Town.js) to a file:// URL,
@@ -187,8 +187,8 @@ void ScriptInspector::RunPauseLoop() {
     // on the way out. Both releasers no-op when no lock is held; a thread never
     // holds both at once, but releasing both keeps this correct regardless of
     // which lock the script was paused under.
-    d2bs::game::GameWriteLockReleaser writeReleaser;
-    d2bs::game::GameReadLockReleaser readReleaser;
+    game::GameWriteLockReleaser writeReleaser;
+    game::GameReadLockReleaser readReleaser;
 
     // V8 re-enters this loop when a debugger evaluation (Runtime.evaluate /
     // evaluateOnCallFrame) itself hits a breakpoint or `debugger`. Save/restore

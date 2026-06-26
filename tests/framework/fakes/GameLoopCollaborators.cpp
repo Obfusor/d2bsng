@@ -6,8 +6,6 @@
 #include "components/events/EventDispatch.h"
 #include "components/script/ScriptEngine.h"
 #include "components/update/UpdateChecker.h"
-#include "game/GameHelpers.h"
-#include "game/Unit.h"
 
 namespace d2bs::test {
 
@@ -27,13 +25,13 @@ void Reset() {
 namespace d2bs {
 
 void LifeEventDispatch(uint32_t life) {
-    d2bs::test::State().lifeEvents.push_back(life);
+    test::State().lifeEvents.push_back(life);
 }
 void ManaEventDispatch(uint32_t mana) {
-    d2bs::test::State().manaEvents.push_back(mana);
+    test::State().manaEvents.push_back(mana);
 }
 void PlayerAssignEventDispatch(uint32_t unitId) {
-    d2bs::test::State().playerAssignEvents.push_back(unitId);
+    test::State().playerAssignEvents.push_back(unitId);
 }
 
 }  // namespace d2bs
@@ -41,8 +39,8 @@ void PlayerAssignEventDispatch(uint32_t unitId) {
 // === Drawable (shim) ===
 namespace d2bs::framework::drawing {
 
-void Drawable::DrawAll(d2bs::game::GameState state) {
-    auto& s = d2bs::test::State();
+void Drawable::DrawAll(game::GameState state) {
+    auto& s = test::State();
     ++s.drawAllCount;
     s.lastDrawState = state;
 }
@@ -77,7 +75,7 @@ void ScriptEngine::RestartConsoleScript() {
     ++restartConsoleCount_;
     // Capture the AppConfig-visible consoleScript at this moment so tests can
     // verify SetScriptPaths ran before RestartConsoleScript was invoked.
-    restartedConsoleName_ = d2bs::config::GetAppConfig().GetScriptPaths().consoleScript;
+    restartedConsoleName_ = config::GetAppConfig().GetScriptPaths().consoleScript;
 }
 
 void ScriptEngine::Reset() {
@@ -101,7 +99,7 @@ CharacterState& CharacterState::Instance() {
     return instance;
 }
 
-void CharacterState::OnTick(d2bs::game::GameState /*state*/, bool /*sessionEntered*/) {}
+void CharacterState::OnTick(game::GameState /*state*/, bool /*sessionEntered*/) {}
 
 }  // namespace d2bs::framework::characterstate
 

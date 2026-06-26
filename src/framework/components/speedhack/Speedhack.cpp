@@ -85,24 +85,24 @@ using SleepConditionVariableCSFn = BOOL(WINAPI*)(PCONDITION_VARIABLE, PCRITICAL_
 using SleepConditionVariableSRWFn = BOOL(WINAPI*)(PCONDITION_VARIABLE, PSRWLOCK, DWORD, ULONG);
 using WaitOnAddressFn = BOOL(WINAPI*)(volatile VOID*, PVOID, SIZE_T, DWORD);
 
-GetTickCountFn realGetTickCount = ::GetTickCount;
-GetTickCount64Fn realGetTickCount64 = ::GetTickCount64;
-QueryPerformanceCounterFn realQueryPerformanceCounter = ::QueryPerformanceCounter;
-TimeGetTimeFn realTimeGetTime = ::timeGetTime;
-GetSystemTimeFn realGetSystemTime = ::GetSystemTime;
-GetLocalTimeFn realGetLocalTime = ::GetLocalTime;
-GetSystemTimeAsFileTimeFn realGetSystemTimeAsFileTime = ::GetSystemTimeAsFileTime;
-GetSystemTimePreciseAsFileTimeFn realGetSystemTimePreciseAsFileTime = ::GetSystemTimePreciseAsFileTime;
-SleepExFn realSleepEx = ::SleepEx;
-WaitForSingleObjectFn realWaitForSingleObject = ::WaitForSingleObject;
-WaitForSingleObjectExFn realWaitForSingleObjectEx = ::WaitForSingleObjectEx;
-WaitForMultipleObjectsFn realWaitForMultipleObjects = ::WaitForMultipleObjects;
-WaitForMultipleObjectsExFn realWaitForMultipleObjectsEx = ::WaitForMultipleObjectsEx;
-MsgWaitForMultipleObjectsFn realMsgWaitForMultipleObjects = ::MsgWaitForMultipleObjects;
-MsgWaitForMultipleObjectsExFn realMsgWaitForMultipleObjectsEx = ::MsgWaitForMultipleObjectsEx;
-SleepConditionVariableCSFn realSleepConditionVariableCS = ::SleepConditionVariableCS;
-SleepConditionVariableSRWFn realSleepConditionVariableSRW = ::SleepConditionVariableSRW;
-WaitOnAddressFn realWaitOnAddress = ::WaitOnAddress;
+GetTickCountFn realGetTickCount = GetTickCount;
+GetTickCount64Fn realGetTickCount64 = GetTickCount64;
+QueryPerformanceCounterFn realQueryPerformanceCounter = QueryPerformanceCounter;
+TimeGetTimeFn realTimeGetTime = timeGetTime;
+GetSystemTimeFn realGetSystemTime = GetSystemTime;
+GetLocalTimeFn realGetLocalTime = GetLocalTime;
+GetSystemTimeAsFileTimeFn realGetSystemTimeAsFileTime = GetSystemTimeAsFileTime;
+GetSystemTimePreciseAsFileTimeFn realGetSystemTimePreciseAsFileTime = GetSystemTimePreciseAsFileTime;
+SleepExFn realSleepEx = SleepEx;
+WaitForSingleObjectFn realWaitForSingleObject = WaitForSingleObject;
+WaitForSingleObjectExFn realWaitForSingleObjectEx = WaitForSingleObjectEx;
+WaitForMultipleObjectsFn realWaitForMultipleObjects = WaitForMultipleObjects;
+WaitForMultipleObjectsExFn realWaitForMultipleObjectsEx = WaitForMultipleObjectsEx;
+MsgWaitForMultipleObjectsFn realMsgWaitForMultipleObjects = MsgWaitForMultipleObjects;
+MsgWaitForMultipleObjectsExFn realMsgWaitForMultipleObjectsEx = MsgWaitForMultipleObjectsEx;
+SleepConditionVariableCSFn realSleepConditionVariableCS = SleepConditionVariableCS;
+SleepConditionVariableSRWFn realSleepConditionVariableSRW = SleepConditionVariableSRW;
+WaitOnAddressFn realWaitOnAddress = WaitOnAddress;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 Snapshot LoadSnapshot(const DomainState& state) {
@@ -142,7 +142,7 @@ FILETIME Int64ToFileTime(int64_t value) {
 // body a safe pass-through for such threads, and must run before any thread_local
 // read in a hook.
 bool ThreadOptedIn() {
-    return d2bs::thread_utils::HasThreadLocalStorage() && threadOptIn;
+    return thread_utils::HasThreadLocalStorage() && threadOptIn;
 }
 
 // Read-API hooks ------------------------------------------------------------
@@ -325,7 +325,7 @@ void ReanchorLocked(float oldSpeed, float newSpeed) {
     realQueryPerformanceCounter(&realQpc);
     FILETIME realFt;
     realGetSystemTimeAsFileTime(&realFt);
-    const int64_t realDwMs = static_cast<int64_t>(realGetTickCount());
+    const int64_t realDwMs = realGetTickCount();
     const int64_t realU64Ms = static_cast<int64_t>(realGetTickCount64());
 
     auto reanchor = [oldSpeed](DomainState& state, int64_t realNow) {
@@ -398,13 +398,13 @@ NestedWaitGuard::NestedWaitGuard() {
     // staged loader DLL's workers) - reading waitChainDepth there access-
     // violates. TLS presence is stable for the life of a thread, so the dtor's
     // identical check always matches: no unbalanced decrement.
-    if (d2bs::thread_utils::HasThreadLocalStorage()) {
+    if (thread_utils::HasThreadLocalStorage()) {
         ++waitChainDepth;
     }
 }
 
 NestedWaitGuard::~NestedWaitGuard() {
-    if (d2bs::thread_utils::HasThreadLocalStorage()) {
+    if (thread_utils::HasThreadLocalStorage()) {
         --waitChainDepth;
     }
 }

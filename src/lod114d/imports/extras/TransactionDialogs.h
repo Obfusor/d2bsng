@@ -29,7 +29,7 @@ static_assert(sizeof(TransactionDialogsInfo) == 0xB0C, "TransactionDialogsInfo m
 }  // namespace d2bs::imports::extras
 
 namespace d2bs::game {
-using ::d2bs::imports::extras::TransactionDialogsInfo;
-using ::d2bs::imports::extras::TransactionDialogsLine;
+using imports::extras::TransactionDialogsInfo;
+using imports::extras::TransactionDialogsLine;
 }  // namespace d2bs::game
 // NOLINTEND(readability-identifier-naming)

@@ -4,8 +4,6 @@
 #include <magic_enum/magic_enum.hpp>
 
 #include <chrono>
-#include <cstdint>
-#include <cstdlib>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -125,7 +123,7 @@ void SettingsPanel::Draw() {
     // Reload the active profile only when the name changes - LoadActive reads the INI.
     if (profileName != cachedProfileName_) {
         cachedProfileName_ = profileName;
-        cachedProfile_ = d2bs::profile::LoadActive();
+        cachedProfile_ = profile::LoadActive();
     }
 
     if (ImGui::CollapsingHeader("Profile")) {
@@ -197,7 +195,7 @@ void SettingsPanel::Draw() {
             const bool enabled = stored > 0;
             int32_t port = std::abs(stored);
             if (port == 0) {
-                port = d2bs::config::DEFAULT_INSPECTOR_PORT;
+                port = config::DEFAULT_INSPECTOR_PORT;
             }
 
             BeginRow("Chrome DevTools");
@@ -208,8 +206,8 @@ void SettingsPanel::Draw() {
             EndRow();
 
             BeginRow("Port");
-            if (ImGui::DragInt("##v", &port, 1.0F, d2bs::config::MIN_INSPECTOR_PORT,
-                               d2bs::config::MAX_INSPECTOR_PORT)) {
+            if (ImGui::DragInt("##v", &port, 1.0F, config::MIN_INSPECTOR_PORT,
+                               config::MAX_INSPECTOR_PORT)) {
                 ScriptEngine::Instance().SetInspector(enabled, port);
             }
             EndRow();

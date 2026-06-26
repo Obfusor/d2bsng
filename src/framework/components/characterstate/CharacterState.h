@@ -2,7 +2,6 @@
 
 #include <array>
 #include <chrono>
-#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -30,7 +29,7 @@ class CharacterState {
     // One call per game-loop tick. `state` is the current game state; emit only
     // happens InGame. `sessionEntered` is the Menu/Null -> InGame transition and
     // forces a keyframe.
-    void OnTick(d2bs::game::GameState state, bool sessionEntered);
+    void OnTick(game::GameState state, bool sessionEntered);
 
     // Records a monster death observed by the client, fed from the game-layer
     // death hook on the game thread (same thread as OnTick, so no locking). The

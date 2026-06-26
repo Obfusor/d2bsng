@@ -3,7 +3,6 @@
 #include <spdlog/spdlog.h>
 
 #include <chrono>
-#include <cstdint>
 #include <optional>
 
 #include "api/core/V8Extract.h"
@@ -17,9 +16,9 @@
 
 namespace d2bs::api::classes {
 
-namespace v8_extract = d2bs::api::v8_extract;
+namespace v8_extract = v8_extract;
 
-using d2bs::game::UnitType;
+using game::UnitType;
 
 // NOLINTNEXTLINE(readability-function-size) - V8 template configuration, intentionally large
 void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTemplate> tpl) {
@@ -555,7 +554,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
             auto* isolate = info.GetIsolate();
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
             info.GetReturnValue().Set(v8_convert::ToV8(isolate, data->Description()));
         });
 
@@ -617,7 +616,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
             // Only return a value for the player unit (matches reference: pUnit == GetPlayerUnit)
-            auto player = d2bs::game::Unit::Player();
+            auto player = game::Unit::Player();
             if (player && *data == player) {
                 info.GetReturnValue().Set(data->RunWalk());
             }
@@ -632,7 +631,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
             // Only return a value for the player unit (matches reference: pUnit == GetPlayerUnit)
-            auto player = d2bs::game::Unit::Player();
+            auto player = game::Unit::Player();
             if (player && *data == player) {
                 info.GetReturnValue().Set(data->WeaponSwitch());
             }
@@ -705,7 +704,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 data->Cursor().mode = v8_convert::ToUint32(isolate, args[1]);
             }
 
-            if (data->Kind() == d2bs::game::UnitKind::InventoryItem) {
+            if (data->Kind() == game::UnitKind::InventoryItem) {
                 auto next = data->FindNextInventoryItem();
                 if (!next) {
                     args.GetReturnValue().SetFalse();
@@ -734,13 +733,13 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "cancel", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
-            auto mode = static_cast<d2bs::game::CancelMode>(-1);  // -1 = auto-detect
+            auto mode = static_cast<game::CancelMode>(-1);  // -1 = auto-detect
             if (args.Length() > 0 && args[0]->IsNumber()) {
-                mode = static_cast<d2bs::game::CancelMode>(v8_convert::ToInt32(isolate, args[0]));
+                mode = static_cast<game::CancelMode>(v8_convert::ToInt32(isolate, args[0]));
             }
             d2bs::game::Cancel(mode);
             args.GetReturnValue().Set(true);
@@ -794,7 +793,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// is the player, or the action failed.
     Method(
         isolate, proto, "interact", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -804,7 +803,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
             // Reference line 829: if unit is the player unit, return early
-            auto player = d2bs::game::Unit::Player();
+            auto player = game::Unit::Player();
             if (player && *data == player) {
                 return;
             }
@@ -836,7 +835,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "getItem", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -845,7 +844,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
 
-            d2bs::game::UnitCursorState cursor;
+            game::UnitCursorState cursor;
             if (args.Length() > 0 && args[0]->IsString()) {
                 cursor.name = v8_convert::ToString(isolate, args[0]);
             } else if (args.Length() > 0 && args[0]->IsUint32()) {
@@ -858,11 +857,11 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 cursor.unitId = v8_convert::ToUint32(isolate, args[2]);
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
             auto invItem = data->FindFirstInventoryItem(cursor);
             if (invItem) {
                 auto context = isolate->GetCurrentContext();
-                auto result = CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(*invItem));
+                auto result = CreateInstance(isolate, context, std::make_unique<game::Unit>(*invItem));
                 args.GetReturnValue().Set(result);
             }
         });
@@ -874,7 +873,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "getItems", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -883,7 +882,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
             // Reference parity: GetItems() returns Regular kind (not InventoryItem).
             auto items = data->GetItems();
             if (items.empty()) {
@@ -893,7 +892,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             auto arr = v8::Array::New(isolate, static_cast<int32_t>(items.size()));
             for (uint32_t i = 0; i < items.size(); ++i) {
                 auto& item = items.at(i);
-                auto obj = CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(item));
+                auto obj = CreateInstance(isolate, context, std::make_unique<game::Unit>(item));
                 if (obj.IsEmpty()) {
                     v8_error::ThrowError(isolate, "Failed to build item array");
                     return;
@@ -919,7 +918,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "getSkill", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -949,12 +948,12 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                     case 1:
                         args.GetReturnValue().Set(v8_convert::ToV8(
                             isolate,
-                            data->GetSkillName(nSkillId > 0 ? d2bs::game::Hand::Left : d2bs::game::Hand::Right)));
+                            data->GetSkillName(nSkillId > 0 ? game::Hand::Left : game::Hand::Right)));
                         break;
                     case 2:
                     case 3:
                         args.GetReturnValue().Set(static_cast<uint32_t>(
-                            data->GetSkillId((nSkillId - 2) > 0 ? d2bs::game::Hand::Left : d2bs::game::Hand::Right)));
+                            data->GetSkillId((nSkillId - 2) > 0 ? game::Hand::Left : game::Hand::Right)));
                         break;
                     case 4: {
                         auto skills = data->GetAllSkills();
@@ -1005,7 +1004,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// owner, false if the game was not ready.
     Method(
         isolate, proto, "getParent", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1027,7 +1026,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
             auto context = isolate->GetCurrentContext();
-            args.GetReturnValue().Set(CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(*owner)));
+            args.GetReturnValue().Set(CreateInstance(isolate, context, std::make_unique<game::Unit>(*owner)));
         });
 
     /// @description Returns this player's hired mercenary as a Unit (Player units only).
@@ -1035,7 +1034,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// @returns {Unit|null} - The mercenary Unit, null if none or not a player, false if the game was not ready.
     Method(
         isolate, proto, "getMerc", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1055,7 +1054,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
             args.GetReturnValue().Set(
-                CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(merc.value())));
+                CreateInstance(isolate, context, std::make_unique<game::Unit>(merc.value())));
         });
 
     // Reference line 1697: lpUnit ? FindUnit(lpUnit) : GetPlayerUnit(), then GetMercUnit + HP%
@@ -1066,17 +1065,17 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// was not ready.
     Method(
         isolate, proto, "getMercHP", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
             // Reference: lpUnit ? FindUnit(lpUnit) : GetPlayerUnit()
             auto* data = Unwrap(args.This());
-            d2bs::game::Unit unit;
+            game::Unit unit;
             if (data && *data) {
                 unit = *data;
             } else {
-                unit = d2bs::game::Unit::Player();
+                unit = game::Unit::Player();
             }
             if (!unit)
                 return;
@@ -1099,7 +1098,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// the game was not ready.
     Method(
         isolate, proto, "getEnchant", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1133,7 +1132,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// @returns {number} - Quest flag/state value; false if the game was not ready.
     Method(
         isolate, proto, "getQuest", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1143,7 +1142,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             auto* isolate = args.GetIsolate();
             uint32_t nQuest = v8_convert::ToUint32(isolate, args[0]);
             uint32_t nFlag = v8_convert::ToUint32(isolate, args[1]);
-            args.GetReturnValue().Set(d2bs::game::GetQuestFlag(nQuest, nFlag));
+            args.GetReturnValue().Set(game::GetQuestFlag(nQuest, nFlag));
         });
 
     /// @description Tests whether the given status-effect state id is currently active on the unit.
@@ -1153,7 +1152,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "getState", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1189,7 +1188,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "getStat", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1296,18 +1295,18 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 args.GetReturnValue().Set(arr);
             } else {
                 // Reference lines 916-940: special cases for the normal (statId >= 0) path
-                if (statId == static_cast<int32_t>(d2bs::game::STAT_ITEMLEVELREQ)) {
+                if (statId == static_cast<int32_t>(game::STAT_ITEMLEVELREQ)) {
                     // STAT_ITEMLEVELREQ: reference calls D2COMMON_GetItemLevelRequirement
                     args.GetReturnValue().Set(data->LevelRequirement());
                 } else {
                     // GetStat handles the >>8 shift for stats 6-11 internally.
-                    int32_t value = data->GetStat(static_cast<uint32_t>(statId), static_cast<uint32_t>(subIndex));
+                    int32_t value = data->GetStat(static_cast<uint32_t>(statId), subIndex);
                     // Stats EXP, LASTEXP, NEXTEXP: return as unsigned double
                     // to handle large XP values that overflow int32_t.
                     // Reference line 918-921: JS_NumberValue((unsigned int)value)
-                    if (statId == static_cast<int32_t>(d2bs::game::STAT_EXP) ||
-                        statId == static_cast<int32_t>(d2bs::game::STAT_LASTEXP) ||
-                        statId == static_cast<int32_t>(d2bs::game::STAT_NEXTEXP)) {
+                    if (statId == static_cast<int32_t>(game::STAT_EXP) ||
+                        statId == static_cast<int32_t>(game::STAT_LASTEXP) ||
+                        statId == static_cast<int32_t>(game::STAT_NEXTEXP)) {
                         args.GetReturnValue().Set(
                             v8_convert::ToV8(isolate, static_cast<double>(static_cast<uint32_t>(value))));
                         return;
@@ -1323,7 +1322,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// @returns {number} - Item flags bitmask, undefined if not an item, false if the game was not ready.
     Method(
         isolate, proto, "getFlags", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1345,7 +1344,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// ready.
     Method(
         isolate, proto, "getFlag", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1379,7 +1378,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "getItemCost", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1394,15 +1393,15 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             if (data->Type() != UnitType::Item) {
                 return;
             }
-            auto mode = static_cast<d2bs::game::ItemCostMode>(v8_convert::ToInt32(isolate, args[0]));
+            auto mode = static_cast<game::ItemCostMode>(v8_convert::ToInt32(isolate, args[0]));
             // Reference line 1277-1287: only modes Buy(0), Sell(1), Repair(2) are valid
-            if (mode < d2bs::game::ItemCostMode::Buy || mode > d2bs::game::ItemCostMode::Repair) {
+            if (mode < game::ItemCostMode::Buy || mode > game::ItemCostMode::Repair) {
                 return;
             }
             // Default NPC: use currently interacting NPC, fall back to Charsi
-            auto npc = d2bs::game::Unit::InteractingNPC();
-            uint32_t npcClassId = npc ? npc->ClassId() : d2bs::game::NPC_CHARSI_CLASS_ID;
-            auto difficulty = d2bs::game::GetDifficulty();
+            auto npc = game::Unit::InteractingNPC();
+            uint32_t npcClassId = npc ? npc->ClassId() : game::NPC_CHARSI_CLASS_ID;
+            auto difficulty = game::GetDifficulty();
             if (args.Length() > 1) {
                 if (args[1]->IsObject()) {
                     // If NPC passed as a Unit object, unwrap and get its classId
@@ -1434,7 +1433,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "setSkill", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1451,7 +1450,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             uint16_t skillId = 0;
             if (args[0]->IsString()) {
                 std::string skillName = v8_convert::ToString(isolate, args[0]);
-                auto resolved = d2bs::game::GetSkillByName(skillName);
+                auto resolved = game::GetSkillByName(skillName);
                 if (!resolved.has_value()) {
                     args.GetReturnValue().SetFalse();
                     return;
@@ -1469,8 +1468,8 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
                 return;
             }
             // JS arg is numeric 0/1 (truthy->leftHand). Preserve that at the binding boundary.
-            d2bs::game::Hand hand =
-                v8_convert::ToBool(isolate, args[1]) ? d2bs::game::Hand::Left : d2bs::game::Hand::Right;
+            game::Hand hand =
+                v8_convert::ToBool(isolate, args[1]) ? game::Hand::Left : game::Hand::Right;
             std::optional<uint32_t> itemId;
             if (args.Length() == 3 && args[2]->IsObject()) {
                 auto* itemUnit = Unwrap(args[2].As<v8::Object>());
@@ -1485,7 +1484,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             // ExecuteEvents drains the script event queue during the wait so
             // blocking game->script events get ack'd and don't stall the game
             // thread. Reference parity: D2Helpers.cpp:259-285.
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             using namespace std::chrono_literals;
             const auto deadline = std::chrono::steady_clock::now() + 1s;
             bool packetSent = false;
@@ -1512,7 +1511,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// @returns {undefined} - No return value; false only if the game was not ready.
     Method(
         isolate, proto, "move", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1520,7 +1519,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             if (!*data) {
                 return;
             }
-            auto player = d2bs::game::Unit::Player();
+            auto player = game::Unit::Player();
             if (!player) {
                 return;
             }
@@ -1545,7 +1544,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// @returns {boolean} - True once handled; false if the game was not ready.
     Method(
         isolate, proto, "overhead", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1569,7 +1568,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// @returns {undefined} - No return value; false only if the game was not ready.
     Method(
         isolate, proto, "revive", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1588,7 +1587,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "shop", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1608,13 +1607,13 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             }
             // Reference reads mode from argv[argc-1] (last argument)
             int32_t lastIdx = args.Length() - 1;
-            auto mode = static_cast<d2bs::game::ShopMode>(v8_convert::ToInt32(isolate, args[lastIdx]));
-            if (mode != d2bs::game::ShopMode::Sell && mode != d2bs::game::ShopMode::Buy &&
-                mode != d2bs::game::ShopMode::BuyFill) {
+            auto mode = static_cast<game::ShopMode>(v8_convert::ToInt32(isolate, args[lastIdx]));
+            if (mode != game::ShopMode::Sell && mode != game::ShopMode::Buy &&
+                mode != game::ShopMode::BuyFill) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
             args.GetReturnValue().Set(data->Shop(mode));
         });
 
@@ -1626,7 +1625,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     /// ready.
     Method(
         isolate, proto, "getMinionCount", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1654,20 +1653,20 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
     Method(
         isolate, proto, "getRepairCost", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
             // Reference line 1978: always uses D2CLIENT_GetPlayerUnit(), not `this`
-            auto player = d2bs::game::Unit::Player();
+            auto player = game::Unit::Player();
             if (!player) {
                 args.GetReturnValue().Set(0);
                 return;
             }
             // Default NPC: use currently interacting NPC, fall back to Charsi
-            auto npc = d2bs::game::Unit::InteractingNPC();
+            auto npc = game::Unit::InteractingNPC();
             int32_t npcClassId =
-                npc ? static_cast<int32_t>(npc->ClassId()) : static_cast<int32_t>(d2bs::game::NPC_CHARSI_CLASS_ID);
+                npc ? static_cast<int32_t>(npc->ClassId()) : static_cast<int32_t>(game::NPC_CHARSI_CLASS_ID);
             if (args.Length() > 0 && args[0]->IsNumber()) {
                 npcClassId = v8_convert::ToInt32(isolate, args[0]);
             }

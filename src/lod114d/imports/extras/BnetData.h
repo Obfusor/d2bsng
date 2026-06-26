@@ -53,6 +53,6 @@ static_assert(sizeof(BnetData) == 0x3C6, "BnetData must be 0x3C6 bytes");
 }  // namespace d2bs::imports::extras
 
 namespace d2bs::game {
-using ::d2bs::imports::extras::BnetData;
+using imports::extras::BnetData;
 }  // namespace d2bs::game
 // NOLINTEND(readability-identifier-naming)

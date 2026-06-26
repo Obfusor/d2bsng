@@ -18,10 +18,10 @@ namespace d2bs::pathfinding {
 
 // Geometric primitives are defined in game/Types.h; alias them here so pathfinding
 // code and consumers can write `d2bs::pathfinding::{Point,Position,Size,Rect}` directly.
-using Point = d2bs::game::Point;
-using Position = d2bs::game::Position;
-using Size = d2bs::game::Size;
-using Rect = d2bs::game::Rect;
+using Point = game::Point;
+using Position = game::Position;
+using Size = game::Size;
+using Rect = game::Rect;
 
 enum class ReductionType : int32_t {
     Walk = 0,
@@ -42,7 +42,7 @@ inline constexpr uint16_t AVOID = 0xFFFF;
 // LevelNodes (in Pathfinder.cpp), and the fast-path window helpers below.
 // Caller must have verified that `pos` lies within `r`.
 [[gnu::always_inline]] constexpr size_t CellIndex(Rect r, Position pos) {
-    return (static_cast<size_t>(pos.y - r.origin.y) * r.size.width) + (pos.x - r.origin.x);
+    return ((pos.y - r.origin.y) * r.size.width) + (pos.x - r.origin.x);
 }
 
 struct LevelGrid {
@@ -249,6 +249,6 @@ std::vector<Position> FindPath(const PathRequest& request);
 // Reused by CollisionLookup (lazy secondary-grid load) and by the exit
 // finder. Defined non-static so callers in other TUs can build a slab
 // without duplicating the room walk + slab assembly.
-LevelGrid BuildLevelGrid(d2bs::game::Level level);
+LevelGrid BuildLevelGrid(game::Level level);
 
 }  // namespace d2bs::pathfinding

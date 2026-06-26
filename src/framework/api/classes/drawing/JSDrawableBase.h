@@ -4,28 +4,26 @@
 #include <v8.h>
 #include "api/core/V8Class.h"
 #include "api/core/V8Convert.h"
-#include "api/core/V8Error.h"
 #include "api/core/V8Extract.h"
 #include "api/core/V8InstanceTracker.h"
 #include "components/drawing/Drawable.h"
 #include "components/script/Script.h"
 #include "components/script/ScriptEngine.h"
-#include "components/script/ScriptTypes.h"
 
 namespace d2bs::api::classes {
 
 // Import drawing types used by all drawing JS class headers
-using d2bs::framework::drawing::Align;
-using d2bs::framework::drawing::BoxDrawable;
-using d2bs::framework::drawing::Drawable;
-using d2bs::framework::drawing::FrameDrawable;
-using d2bs::framework::drawing::ImageDrawable;
-using d2bs::framework::drawing::LineDrawable;
-using d2bs::framework::drawing::TextDrawable;
+using framework::drawing::Align;
+using framework::drawing::BoxDrawable;
+using framework::drawing::Drawable;
+using framework::drawing::FrameDrawable;
+using framework::drawing::ImageDrawable;
+using framework::drawing::LineDrawable;
+using framework::drawing::TextDrawable;
 
 // v8_extract is a sibling namespace - alias so all drawing JS headers can write
 // v8_extract::PointInto / SizeInto without fully qualifying.
-namespace v8_extract = d2bs::api::v8_extract;
+namespace v8_extract = v8_extract;
 
 template <typename Derived, typename DrawableType>
 class JSDrawableBase : public V8ClassBase<Derived, DrawableType> {
@@ -147,7 +145,7 @@ class JSDrawableBase : public V8ClassBase<Derived, DrawableType> {
                     return;
                 auto raw = v8_convert::ToInt32(info.GetIsolate(), value);
                 if (raw >= 0 && raw <= 2) {
-                    drawable->align.store(static_cast<d2bs::framework::drawing::Align>(raw));
+                    drawable->align.store(static_cast<Align>(raw));
                 }
             });
 
@@ -232,7 +230,7 @@ class JSDrawableBase : public V8ClassBase<Derived, DrawableType> {
                 auto* drawable = Base::Unwrap(args.This());
                 if (!drawable)
                     return;
-                auto* script = d2bs::ScriptEngine::Instance().GetScript(args.GetIsolate());
+                auto* script = ScriptEngine::Instance().GetScript(args.GetIsolate());
                 if (!script)
                     return;
                 script->RemoveDrawable(drawable->shared_from_this());

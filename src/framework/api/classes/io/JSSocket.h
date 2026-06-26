@@ -1,7 +1,6 @@
 #pragma once
 
 #include <v8.h>
-#include <cstdint>
 #include <string>
 #include "api/core/V8Class.h"
 #include "api/core/V8Convert.h"

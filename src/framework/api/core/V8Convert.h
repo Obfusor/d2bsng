@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <filesystem>
 #include <string>
 
@@ -72,7 +71,7 @@ inline v8::Local<v8::Boolean> ToV8(v8::Isolate* isolate, bool val) {
 }
 
 // {x: uint32, y: uint32}
-inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, d2bs::game::Position pos) {
+inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, game::Position pos) {
     auto context = isolate->GetCurrentContext();
     auto obj = v8::Object::New(isolate);
     obj->Set(context, ToV8(isolate, "x"), ToV8(isolate, pos.x)).Check();
@@ -81,7 +80,7 @@ inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, d2bs::game::Position pos
 }
 
 // {x: int32, y: int32}
-inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, d2bs::game::Point pt) {
+inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, game::Point pt) {
     auto context = isolate->GetCurrentContext();
     auto obj = v8::Object::New(isolate);
     obj->Set(context, ToV8(isolate, "x"), ToV8(isolate, pt.x)).Check();
@@ -90,7 +89,7 @@ inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, d2bs::game::Point pt) {
 }
 
 // {width: uint32, height: uint32}
-inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, d2bs::game::Size sz) {
+inline v8::Local<v8::Object> ToV8(v8::Isolate* isolate, game::Size sz) {
     auto context = isolate->GetCurrentContext();
     auto obj = v8::Object::New(isolate);
     obj->Set(context, ToV8(isolate, "width"), ToV8(isolate, sz.width)).Check();

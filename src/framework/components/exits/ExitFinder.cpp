@@ -44,8 +44,8 @@ namespace d2bs::game {
 
 namespace {
 
-using d2bs::pathfinding::BuildLevelGrid;
-using d2bs::pathfinding::CollisionLookup;
+using pathfinding::BuildLevelGrid;
+using pathfinding::CollisionLookup;
 
 constexpr uint32_t UNIT_TILE = 5;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+// ReSharper disable once CppUnusedIncludeDirective
 #include "D2MOOConfig.h"
 #include "ImportTypes.h"
 

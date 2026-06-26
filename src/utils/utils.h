@@ -3,7 +3,6 @@
 #include <Windows.h>
 #include <spdlog/logger.h>
 #include <spdlog/spdlog.h>
-#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>

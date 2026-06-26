@@ -281,6 +281,63 @@ All includes use project-root-relative paths - never use relative paths like `..
 
 Same-directory includes use quotes without path: `#include "ClassRegistry.h"`
 
+### Load-bearing includes (do not strip in "unused include" cleanups)
+
+Some `#include`s name no symbol directly in the including file yet are required
+to compile or link it. A "remove unused includes" pass (ReSharper's unused-include
+cleanup, clang-tidy IWYU, etc.) cannot see why they are needed and will strip
+them, breaking the build in non-obvious ways. When an include is genuinely
+load-bearing but looks unused, guard it with a suppression comment on the line
+directly above it:
+
+```cpp
+// ReSharper disable once CppUnusedIncludeDirective
+#include "D2MOOConfig.h"
+```
+
+The recurring categories in this codebase:
+
+- **Macro-configuration headers.** `imports/D2MOOConfig.h` defines the
+  `*_DLL_DECL` macros (`STORM_DLL_DECL`, `D2COMMON_DLL_DECL`, ...) and the D2
+  version-selection macros that the vendored D2MOO headers expand. Every
+  `imports/*.h` that transitively pulls in a D2MOO header includes it first
+  (above `ImportTypes.h`); without it you get `unknown type name 'STORM_DLL_DECL'`.
+  It names no symbol used by the including header, so it always looks unused.
+- **Macro-driven implementation.** `tests/framework/test_main.cpp` is the one TU
+  that defines `DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN` and then includes
+  `<doctest/doctest.h>`; that include is what emits doctest's runner, registry,
+  and `main()`. Drop it and every test file's static registrar fails to link
+  (`undefined symbol: doctest::detail::TestCase::operator*`).
+- **Complete type for an out-of-line defaulted dtor/ctor.** A `.cpp` that defines
+  `= default` ctor/dtor for a class holding `std::unique_ptr<T>` of a
+  forward-declared `T` must include `T`'s full definition (e.g. `AppConfig.cpp`
+  includes `ConfigStore.h`) - the implicit `~unique_ptr` instantiation needs the
+  complete type. The include looks unused because no member of `T` is named in
+  the `.cpp`. (See also the unique_ptr entry under "Common clang-tidy Pitfalls".)
+- **Transitive type providers (fix by IWYU, not by re-adding to the intermediary).**
+  When a header stops handing a type to a transitive consumer, add the include to
+  the file that actually uses the type rather than restoring it in the
+  intermediary. Example: `GameHelpers.cpp` dereferences `D2InventoryGridInfoStrc`
+  (`entry->layout->...`), whose full definition lives in `DataTbls/InvTbls.h`;
+  `D2Common.h` only forwards `D2Inventory.h` (a forward declaration of that type),
+  so the consumer includes `InvTbls.h` directly. Do not re-add such an include to
+  a header that does not use the type - that re-introduces the redundancy the
+  cleanup removed. (Conversely, `D2Constants.h` / `LevelsTbls.h` / `ObjectsTbls.h`
+  / `D2BitManip.h` are correctly reached through `D2Common.h`, which includes and
+  uses them, so their removal from other files is fine.)
+- **Inline definitions split from their declaration.** `game/Finders.h` holds the
+  inline bodies of the handle classes' `Find*` / `Get*` methods, while the
+  declarations live in `Unit.h` / `Control.h` / `Level.h` / `Party.h`. A `.cpp`
+  that calls one of these compiles against the declaration alone, so the call site
+  looks like it needs only the handle header - but without `Finders.h` the inline
+  body is emitted in no TU and you get a link-time `undefined symbol` (e.g.
+  `Control::Find`, `Unit::FindFirst`, `Level::GetPresetUnits`). Any TU that calls
+  a `Finders.h` method must include it.
+
+After any unused-include cleanup, build both the DLL (`build.ps1 Release`) and the
+tests (`build.ps1 test`) - the compiler and linker are the only reliable check
+that a stripped include was actually unused.
+
 ### Dependency Rules
 
 These are the intended dependencies. A few deliberate exceptions are noted inline - each one lets a layer reuse an existing type or helper instead of duplicating it, which is the cheaper trade-off than the indirection that removing the edge would require.
@@ -425,6 +482,35 @@ void SendKey(uint32_t key);
 **Good:** no comment at all (or a comment that describes what the current thing *is*, not what it *used to be*).
 
 The same applies to the doc strings: don't mention that `Message` "was previously called X" or that `SplitByColor` "used to live in framework/components/". Current behavior only.
+
+### Redundant qualifiers, casts, access specifiers, and includes
+
+Write the minimal form. Cleanups (including ReSharper) routinely strip these, so
+writing them minimal up front makes a cleanup a no-op rather than a diff.
+
+- **Namespace qualifiers.** Qualify only as far as name lookup needs from the
+  current scope. Inside `namespace d2bs::api`, write `game::Unit`, not
+  `d2bs::game::Unit`; inside a member of `d2bs::game::Control`, write `FromPtr`,
+  not `Control::FromPtr`. Reach for a fully-qualified name only to disambiguate.
+- **Casts.** Drop a `static_cast<T>(x)` when `x` is already a `T` or converts to
+  one implicitly without narrowing - `DWORD n = request.body.size();`, not
+  `static_cast<DWORD>(request.body.size())`; a single cast, not nested casts that
+  funnel the same value through (`static_cast<unsigned char>(*p)` when assigning to
+  a `wchar_t`, not `static_cast<wchar_t>(static_cast<unsigned char>(*p))`). Keep a
+  cast that marks a real narrowing or a signed/unsigned flip the reader should see,
+  or that a clang-tidy check requires - e.g. `static_cast<void*>` on a multi-level
+  pointer (`const uint8_t**`) passed to `memcpy`, which
+  `bugprone-multi-level-implicit-pointer-conversion` rejects when left implicit.
+  Such a cast looks redundant to the compiler and to ReSharper but is not; guard it
+  against re-removal with `// ReSharper disable once CppRedundantCastExpression`.
+- **Access specifiers.** Drop a redundant access label: a leading `private:` in a
+  `class` (already private) or `public:` in a `struct` (already public), and any
+  later label that repeats the current access.
+- **Includes.** Remove genuinely unused includes - but an include that is needed
+  for macros, linkage, an inline definition, or a complete type yet names no symbol
+  in the file is *load-bearing*: keep it and guard it with
+  `// ReSharper disable once CppUnusedIncludeDirective`. See "Load-bearing includes"
+  under Include Path Strategy.
 
 ### Naming
 
@@ -756,4 +842,10 @@ REQUIRE(loaded.has_value());
 // NOLINTBEGIN(bugprone-unchecked-optional-access) - REQUIRE above guarantees has_value
 CHECK(loaded->field == expected);
 // NOLINTEND(bugprone-unchecked-optional-access)
+```
+
+**Multi-level pointer to `void*` needs an explicit cast** - `bugprone-multi-level-implicit-pointer-conversion` flags passing a pointer-to-pointer (e.g. `const uint8_t**`) straight to a `void*` parameter such as `memcpy`'s. The implicit conversion is legal C++, so both the compiler and ReSharper see the `static_cast<void*>` as redundant - but clang-tidy requires it. Keep the cast and guard it:
+```cpp
+// ReSharper disable once CppRedundantCastExpression - clang-tidy needs the explicit void*
+std::memcpy(static_cast<void*>(outBase), src, sizeof(*outBase));
 ```

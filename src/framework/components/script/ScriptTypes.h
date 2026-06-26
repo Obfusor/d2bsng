@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 namespace d2bs {
 
 // Ordering matters: Stop() uses `>= Ready` to decide if the isolate

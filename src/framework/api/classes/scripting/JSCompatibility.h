@@ -40,7 +40,7 @@ class JSCompatibility : public V8ClassBase<JSCompatibility, CompatibilityData> {
                 auto* isolate = args.GetIsolate();
                 auto context = isolate->GetCurrentContext();
                 std::vector<std::string> names;
-                for (const auto& flag : d2bs::config::CompatibilityFlags::Instance().All()) {
+                for (const auto& flag : config::CompatibilityFlags::Instance().All()) {
                     if (flag.enabled) {
                         names.push_back(flag.name);
                     }
@@ -67,7 +67,7 @@ class JSCompatibility : public V8ClassBase<JSCompatibility, CompatibilityData> {
             isolate, tpl, "set", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
                 auto* isolate = args.GetIsolate();
                 auto context = isolate->GetCurrentContext();
-                auto& registry = d2bs::config::CompatibilityFlags::Instance();
+                auto& registry = config::CompatibilityFlags::Instance();
 
                 // Object form: set({flag: bool, ...}). Validate every key before
                 // applying so a typo can't leave a half-applied change.
@@ -118,7 +118,7 @@ class JSCompatibility : public V8ClassBase<JSCompatibility, CompatibilityData> {
         /// @signature Compatibility.reset()
         StaticMethod(
             isolate, tpl, "reset",
-            +[](const v8::FunctionCallbackInfo<v8::Value>&) { d2bs::config::CompatibilityFlags::Instance().Reset(); });
+            +[](const v8::FunctionCallbackInfo<v8::Value>&) { config::CompatibilityFlags::Instance().Reset(); });
     }
 };
 

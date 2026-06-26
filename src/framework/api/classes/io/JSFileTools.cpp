@@ -1,6 +1,5 @@
 #include "JSFileTools.h"
 
-#include <cstdio>
 #include <filesystem>
 #include <mutex>
 #include <string>
@@ -17,7 +16,7 @@ namespace d2bs::api::classes::filetools_detail {
 std::mutex fileMutex;
 
 std::filesystem::path ResolveScriptPath(v8::Isolate* isolate, const std::string& relativePath, const char* errorMsg) {
-    auto fullPath = d2bs::config::GetPathRelScript(relativePath);
+    auto fullPath = config::GetPathRelScript(relativePath);
     if (fullPath.empty()) {
         v8_error::ThrowError(isolate, errorMsg);
     }
@@ -25,7 +24,7 @@ std::filesystem::path ResolveScriptPath(v8::Isolate* isolate, const std::string&
 }
 
 FILE* FileOpenRelScript(v8::Isolate* isolate, const std::string& relativePath, const wchar_t* mode) {
-    auto fullPath = d2bs::config::GetPathRelScript(relativePath);
+    auto fullPath = config::GetPathRelScript(relativePath);
     if (fullPath.empty()) {
         v8_error::ThrowError(isolate, "Invalid file name");
         return nullptr;

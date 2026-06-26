@@ -4,8 +4,6 @@
 #include <array>
 #include <atomic>
 #include <chrono>
-#include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <random>
@@ -36,7 +34,6 @@
 #include "components/speedhack/Speedhack.h"
 #include "game/Console.h"
 #include "game/GameHelpers.h"
-#include "game/Unit.h"
 #include "utils/threadutils.h"
 #include "utils/utils.h"
 
@@ -49,7 +46,7 @@ using namespace d2bs::api;
 static bool BuildPacketFromArgs(const v8::FunctionCallbackInfo<v8::Value>& args, std::vector<uint8_t>& out) {
     auto* isolate = args.GetIsolate();
 
-    if (!d2bs::config::GetAppConfig().enableUnsupported.load()) {
+    if (!config::GetAppConfig().enableUnsupported.load()) {
         v8_error::WarnAndReturnFalse(args, "Packet API requires EnableUnsupported = true in d2bs.ini");
         return false;
     }
@@ -63,11 +60,11 @@ static bool BuildPacketFromArgs(const v8::FunctionCallbackInfo<v8::Value>& args,
 
         if (obj->IsArrayBuffer()) {
             backingStore = obj.As<v8::ArrayBuffer>()->GetBackingStore();
-            len = static_cast<uint32_t>(backingStore->ByteLength());
+            len = backingStore->ByteLength();
         } else if (obj->IsTypedArray()) {
             auto typedArray = obj.As<v8::TypedArray>();
             backingStore = typedArray->Buffer()->GetBackingStore();
-            len = static_cast<uint32_t>(typedArray->ByteLength());
+            len = typedArray->ByteLength();
             byteOffset = typedArray->ByteOffset();
         } else {
             v8_error::WarnAndReturnFalse(args, "invalid ArrayBuffer parameter");
@@ -108,7 +105,7 @@ static bool BuildPacketFromArgs(const v8::FunctionCallbackInfo<v8::Value>& args,
 
 // Resolve an include path: looks in libs/ subdirectory only
 static std::filesystem::path FindIncludePath(const std::string& relativePath) {
-    auto resolved = d2bs::config::GetPathRelScript("libs/" + relativePath);
+    auto resolved = config::GetPathRelScript("libs/" + relativePath);
     if (!resolved.empty() && std::filesystem::exists(resolved))
         return resolved;
     return {};
@@ -116,7 +113,7 @@ static std::filesystem::path FindIncludePath(const std::string& relativePath) {
 
 // Resolve a script path: direct path only (matching d2bs reference behavior)
 static std::filesystem::path FindScriptPath(const std::string& relativePath) {
-    auto resolved = d2bs::config::GetPathRelScript(relativePath);
+    auto resolved = config::GetPathRelScript(relativePath);
     if (!resolved.empty() && std::filesystem::exists(resolved))
         return resolved;
     return {};
@@ -134,8 +131,8 @@ static void ConvertToEuc(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     // Convert: UTF-8 -> wide string -> ANSI (system codepage) -> UTF-8 for V8
     std::string str = v8_convert::ToString(isolate, args[0]);
-    std::wstring wide = d2bs::utils::ToWStr(str);
-    std::string ansi = d2bs::utils::ToStr(wide, CP_ACP);
+    std::wstring wide = utils::ToWStr(str);
+    std::string ansi = utils::ToStr(wide, CP_ACP);
     args.GetReturnValue().Set(v8_convert::ToV8(isolate, ansi));
 }
 
@@ -151,9 +148,9 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // Identify the originating script/isolate by short name - same
             // value the per-script logger is named after; cheaper than going
             // through the logger when we're not actually logging via spdlog.
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             std::string name = script ? script->GetName() : "js";
-            const auto source = (script != nullptr && script->GetMode() == d2bs::ScriptMode::Console)
+            const auto source = (script != nullptr && script->GetMode() == ScriptMode::Console)
                                     ? game::console::MessageSource::ConsolePrint
                                     : game::console::MessageSource::Print;
 
@@ -189,13 +186,13 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // Clamp to at least 1ms so events are always processed
             // ToUint32 follows ECMAScript ToUint32: NaN/undefined/arrays -> 0
             uint32_t ms = std::max(v8_convert::ToUint32(isolate, args[0]), 1U);
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (script) {
                 // Snapshot the JS stack at this yield only when the console's
                 // Stacktraces panel has this script selected (mode != Off) -
                 // otherwise it's a full stack walk on every delay(). On the
                 // script's own thread here, so it's synchronous, no interrupt.
-                if (script->GetStackCaptureMode() != d2bs::StackCaptureMode::Off) {
+                if (script->GetStackCaptureMode() != StackCaptureMode::Off) {
                     script->RefreshLastStackTrace();
                 }
                 script->ExecuteEvents(std::chrono::milliseconds(ms));
@@ -227,7 +224,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script) {
                 return;
             }
@@ -258,7 +255,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script) {
                 return;
             }
@@ -292,19 +289,19 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             auto absPath = FindScriptPath(file);
             if (absPath.empty()) {
-                d2bs::GetLogger(isolate)->warn("load: could not find file \"{}\"", file);
+                GetLogger(isolate)->warn("load: could not find file \"{}\"", file);
                 return;
             }
 
-            auto* currentScript = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* currentScript = ScriptEngine::Instance().GetScript(isolate);
             if (!currentScript) {
                 return;
             }
 
             auto mode = currentScript->GetMode();
-            if (mode == d2bs::ScriptMode::Console) {
-                mode = (d2bs::game::GetGameState() == d2bs::game::GameState::InGame) ? d2bs::ScriptMode::InGame
-                                                                                     : d2bs::ScriptMode::OutOfGame;
+            if (mode == ScriptMode::Console) {
+                mode = (game::GetGameState() == game::GameState::InGame) ? ScriptMode::InGame
+                                                                                     : ScriptMode::OutOfGame;
             }
 
             std::vector<std::vector<uint8_t>> serializedArgs;
@@ -320,9 +317,9 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 std::free(data);  // NOLINT(cppcoreguidelines-no-malloc) - V8's ValueSerializer allocates with realloc()
             }
 
-            auto newScript = d2bs::ScriptEngine::Instance().StartScript(absPath, mode, std::move(serializedArgs));
+            auto newScript = ScriptEngine::Instance().StartScript(absPath, mode, std::move(serializedArgs));
             if (newScript) {
-                auto scriptObj = d2bs::api::classes::JSScript::Create(isolate, newScript.get());
+                auto scriptObj = classes::JSScript::Create(isolate, newScript.get());
                 args.GetReturnValue().Set(scriptObj);
             } else {
                 args.GetReturnValue().SetNull();
@@ -347,7 +344,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             if (stopCurrent) {
-                auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+                auto* script = ScriptEngine::Instance().GetScript(isolate);
                 if (script) {
                     script->Stop();
                     // TerminateExecution ensures code after stop() does not run (reference returns JS_FALSE for same
@@ -355,7 +352,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                     isolate->TerminateExecution();
                 }
             } else {
-                d2bs::ScriptEngine::Instance().StopAllScripts();
+                ScriptEngine::Instance().StopAllScripts();
                 isolate->TerminateExecution();
             }
         });
@@ -448,8 +445,8 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                                      "c1 \xff"
                                      "c3" +
                                      std::string(D2BS_VERSION);
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
-            const auto source = (script != nullptr && script->GetMode() == d2bs::ScriptMode::Console)
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
+            const auto source = (script != nullptr && script->GetMode() == ScriptMode::Console)
                                     ? game::console::MessageSource::ConsolePrint
                                     : game::console::MessageSource::Print;
             game::console::OnMessage({
@@ -485,7 +482,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             v8::Local<v8::StackTrace> stackTrace =
                 v8::StackTrace::CurrentStackTrace(isolate, 50, v8::StackTrace::kDetailed);
 
-            auto logger = d2bs::GetLogger(isolate);
+            auto logger = GetLogger(isolate);
             logger->info("JavaScript Stack Trace:");
 
             for (int32_t i = 0; i < stackTrace->GetFrameCount(); ++i) {
@@ -505,7 +502,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 logger->info("  at {} ({}:{}:{})", functionName, scriptName, lineNumber, column);
             }
 
-            logger->info("Native stack trace:\n{}", d2bs::thread_utils::GetThreadStacktrace());
+            logger->info("Native stack trace:\n{}", thread_utils::GetThreadStacktrace());
 
             args.GetReturnValue().Set(true);
         });
@@ -517,9 +514,9 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     v8_function::Register(
         isolate, global, "debugLog", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             std::string name = script ? script->GetName() : "js";
-            const auto source = (script != nullptr && script->GetMode() == d2bs::ScriptMode::Console)
+            const auto source = (script != nullptr && script->GetMode() == ScriptMode::Console)
                                     ? game::console::MessageSource::ConsolePrint
                                     : game::console::MessageSource::Print;
 
@@ -578,16 +575,16 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             std::string data = v8_convert::ToString(isolate, args[4]);
 
             // JS `mode` 0/1/2 maps 1:1 to the Transaction enum values.
-            if (mode > static_cast<uint32_t>(d2bs::dde::Transaction::Evaluate)) {
+            if (mode > static_cast<uint32_t>(dde::Transaction::Evaluate)) {
                 return;
             }
-            auto txn = static_cast<d2bs::dde::Transaction>(mode);
+            auto txn = static_cast<dde::Transaction>(mode);
 
             // Matches reference/d2bs JSCore.cpp my_sendDDE: never throws on DDE failure; any failure
             // is logged and the JS return value stays undefined (caller sees no response). Only
             // Request sets a return value, and only on successful payload retrieval.
-            auto result = d2bs::dde::DdeService::Instance().Send(txn, server, topic, item, data);
-            if (txn == d2bs::dde::Transaction::Request && result) {
+            auto result = dde::DdeService::Instance().Send(txn, server, topic, item, data);
+            if (txn == dde::Transaction::Request && result) {
                 args.GetReturnValue().Set(v8_convert::ToV8(isolate, *result));
             }
         });
@@ -605,7 +602,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            d2bs::ScriptBroadcastEventDispatch(args);
+            ScriptBroadcastEventDispatch(args);
             args.GetReturnValue().SetNull();
         });
 
@@ -650,7 +647,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             std::string path = v8_convert::ToString(isolate, args[0]);
-            if (d2bs::config::IsValidPath(path)) {
+            if (config::IsValidPath(path)) {
                 game::LoadMpq(path);
             }
         });
@@ -739,7 +736,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto p = v8_extract::Point(args, 0).value_or(d2bs::game::Point::Zero);
+            auto p = v8_extract::Point(args, 0).value_or(game::Point::Zero);
             // Port owns the full sequence - timing, mouse-down/up ordering,
             // and any port-specific ceremony (see src/<port>/game for impl).
             game::SendClick(p);
@@ -811,7 +808,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             std::string path = v8_convert::ToString(isolate, args[0]);
 
-            auto fullPath = d2bs::config::GetPathRelScript(path);
+            auto fullPath = config::GetPathRelScript(path);
             if (fullPath.empty()) {
                 auto msg = "Invalid path: " + path;
                 v8_error::ThrowError(isolate, msg);
@@ -847,11 +844,11 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     v8_function::Register(
         isolate, global, "getScript", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
-            auto& engine = d2bs::ScriptEngine::Instance();
+            auto& engine = ScriptEngine::Instance();
 
             args.GetReturnValue().SetNull();
 
-            std::shared_ptr<d2bs::Script> targetScript;
+            std::shared_ptr<Script> targetScript;
 
             if (args.Length() == 0) {
                 // No arguments: return first script
@@ -907,7 +904,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "getScripts", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
-            auto& engine = d2bs::ScriptEngine::Instance();
+            auto& engine = ScriptEngine::Instance();
 
             auto scripts = engine.GetAllScripts();
             auto array = v8::Array::New(isolate, static_cast<int32_t>(scripts.size()));
@@ -939,14 +936,14 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script)
                 return;
 
             auto fn = args[0].As<v8::Function>();
             uint32_t delayMs = v8_convert::ToUint32(isolate, args[1]);
 
-            auto event = std::make_shared<d2bs::DelayedEvent>(v8::Global<v8::Function>(isolate, fn));
+            auto event = std::make_shared<DelayedEvent>(v8::Global<v8::Function>(isolate, fn));
             script->AddDelayedEvent(event);
             script->PostEvent(event, delayMs);
             args.GetReturnValue().Set(event->EventId());
@@ -966,7 +963,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script)
                 return;
 
@@ -990,14 +987,14 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script)
                 return;
 
             auto fn = args[0].As<v8::Function>();
             uint32_t repeatMs = v8_convert::ToUint32(isolate, args[1]);
 
-            auto event = std::make_shared<d2bs::DelayedEvent>(v8::Global<v8::Function>(isolate, fn), repeatMs);
+            auto event = std::make_shared<DelayedEvent>(v8::Global<v8::Function>(isolate, fn), repeatMs);
             script->AddDelayedEvent(event);
             script->PostEvent(event, repeatMs);
             args.GetReturnValue().Set(event->EventId());
@@ -1017,7 +1014,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script)
                 return;
 
@@ -1048,7 +1045,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script)
                 return;
 
@@ -1077,7 +1074,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script)
                 return;
 
@@ -1098,7 +1095,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             std::string eventName = v8_convert::ToString(isolate, args[0]);
 
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
+            auto* script = ScriptEngine::Instance().GetScript(isolate);
             if (!script)
                 return;
 
@@ -1110,7 +1107,7 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     /// @returns {undefined}
     v8_function::Register(
         isolate, global, "clearAllEvents", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            auto* script = d2bs::ScriptEngine::Instance().GetScript(args.GetIsolate());
+            auto* script = ScriptEngine::Instance().GetScript(args.GetIsolate());
             if (!script)
                 return;
 

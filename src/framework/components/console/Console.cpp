@@ -27,7 +27,7 @@ constexpr size_t MAX_PENDING = 5000;
 // Cross-thread inbound queue. OnMessage appends; DrawFrame swaps it out.
 std::mutex queueMutex;
 // NOLINTNEXTLINE(cert-err58-cpp) - default-constructed deque, no real throw risk
-std::deque<d2bs::game::console::Message> pending;
+std::deque<game::console::Message> pending;
 
 struct State {
     bool initialized = false;
@@ -62,14 +62,14 @@ void Initialize(State& state) {
 }
 
 void DrainQueue(State& state) {
-    std::deque<d2bs::game::console::Message> batch;
+    std::deque<game::console::Message> batch;
     {
         const std::scoped_lock guard(queueMutex);
         std::swap(batch, pending);
     }
     for (auto& msg : batch) {
-        if (msg.source == d2bs::game::console::MessageSource::EvaluateResult ||
-            msg.source == d2bs::game::console::MessageSource::ConsolePrint) {
+        if (msg.source == game::console::MessageSource::EvaluateResult ||
+            msg.source == game::console::MessageSource::ConsolePrint) {
             if (state.consolePanel != nullptr) {
                 state.consolePanel->Append(msg);
             }
@@ -88,13 +88,13 @@ void DrawFrame() {
     Initialize(state);
     DrainQueue(state);
 
-    const bool visible = d2bs::game::console::IsVisible();
+    const bool visible = game::console::IsVisible();
     if (state.visible && !visible) {
         // Console just hidden: stop all per-script stack capture so a script left
         // selected in the Stacktraces panel doesn't keep walking its V8 stack at
         // every delay(). The panel re-enables the selected script on show.
-        for (const auto& script : d2bs::ScriptEngine::Instance().GetAllScripts()) {
-            script->SetStackCaptureMode(d2bs::StackCaptureMode::Off);
+        for (const auto& script : ScriptEngine::Instance().GetAllScripts()) {
+            script->SetStackCaptureMode(StackCaptureMode::Off);
         }
     }
     state.visible = visible;
@@ -123,7 +123,7 @@ void DrawFrame() {
     ImGui::End();
 }
 
-void OnMessage(const d2bs::game::console::Message& msg) {
+void OnMessage(const game::console::Message& msg) {
     const std::scoped_lock guard(queueMutex);
     pending.push_back(msg);
     while (pending.size() > MAX_PENDING) {

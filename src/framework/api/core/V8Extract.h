@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <cstdint>
 #include <optional>
 
 #include <v8.h>
@@ -21,7 +20,7 @@ namespace d2bs::api::v8_extract {
 // From a v8::Value (object input, e.g. {x, y} or {width, height})
 // ============================================================================
 
-inline std::optional<d2bs::game::Position> Position(v8::Isolate* isolate, v8::Local<v8::Value> val) {
+inline std::optional<game::Position> Position(v8::Isolate* isolate, v8::Local<v8::Value> val) {
     if (val.IsEmpty() || !val->IsObject())
         return std::nullopt;
     auto context = isolate->GetCurrentContext();
@@ -34,10 +33,10 @@ inline std::optional<d2bs::game::Position> Position(v8::Isolate* isolate, v8::Lo
         return std::nullopt;
     if (!xv->IsNumber() || !yv->IsNumber())
         return std::nullopt;
-    return d2bs::game::Position{.x = v8_convert::ToUint32(isolate, xv), .y = v8_convert::ToUint32(isolate, yv)};
+    return game::Position{.x = v8_convert::ToUint32(isolate, xv), .y = v8_convert::ToUint32(isolate, yv)};
 }
 
-inline std::optional<d2bs::game::Point> Point(v8::Isolate* isolate, v8::Local<v8::Value> val) {
+inline std::optional<game::Point> Point(v8::Isolate* isolate, v8::Local<v8::Value> val) {
     if (val.IsEmpty() || !val->IsObject())
         return std::nullopt;
     auto context = isolate->GetCurrentContext();
@@ -50,10 +49,10 @@ inline std::optional<d2bs::game::Point> Point(v8::Isolate* isolate, v8::Local<v8
         return std::nullopt;
     if (!xv->IsNumber() || !yv->IsNumber())
         return std::nullopt;
-    return d2bs::game::Point{.x = v8_convert::ToInt32(isolate, xv), .y = v8_convert::ToInt32(isolate, yv)};
+    return game::Point{.x = v8_convert::ToInt32(isolate, xv), .y = v8_convert::ToInt32(isolate, yv)};
 }
 
-inline std::optional<d2bs::game::Size> Size(v8::Isolate* isolate, v8::Local<v8::Value> val) {
+inline std::optional<game::Size> Size(v8::Isolate* isolate, v8::Local<v8::Value> val) {
     if (val.IsEmpty() || !val->IsObject())
         return std::nullopt;
     auto context = isolate->GetCurrentContext();
@@ -66,7 +65,7 @@ inline std::optional<d2bs::game::Size> Size(v8::Isolate* isolate, v8::Local<v8::
         return std::nullopt;
     if (!wv->IsNumber() || !hv->IsNumber())
         return std::nullopt;
-    return d2bs::game::Size{.width = v8_convert::ToUint32(isolate, wv), .height = v8_convert::ToUint32(isolate, hv)};
+    return game::Size{.width = v8_convert::ToUint32(isolate, wv), .height = v8_convert::ToUint32(isolate, hv)};
 }
 
 // ============================================================================
@@ -77,27 +76,27 @@ inline std::optional<d2bs::game::Size> Size(v8::Isolate* isolate, v8::Local<v8::
 // per V8 semantics - matching the pre-refactor behavior where scripts like
 // `getPath(area, "10", "20", ...)` silently worked via implicit coercion.
 // Only the arg-count bound is enforced here.
-inline std::optional<d2bs::game::Position> Position(const v8::FunctionCallbackInfo<v8::Value>& args, int idx) {
+inline std::optional<game::Position> Position(const v8::FunctionCallbackInfo<v8::Value>& args, int idx) {
     if (args.Length() <= idx + 1)
         return std::nullopt;
     auto* isolate = args.GetIsolate();
-    return d2bs::game::Position{.x = v8_convert::ToUint32(isolate, args[idx]),
+    return game::Position{.x = v8_convert::ToUint32(isolate, args[idx]),
                                 .y = v8_convert::ToUint32(isolate, args[idx + 1])};
 }
 
-inline std::optional<d2bs::game::Point> Point(const v8::FunctionCallbackInfo<v8::Value>& args, int idx) {
+inline std::optional<game::Point> Point(const v8::FunctionCallbackInfo<v8::Value>& args, int idx) {
     if (args.Length() <= idx + 1)
         return std::nullopt;
     auto* isolate = args.GetIsolate();
-    return d2bs::game::Point{.x = v8_convert::ToInt32(isolate, args[idx]),
+    return game::Point{.x = v8_convert::ToInt32(isolate, args[idx]),
                              .y = v8_convert::ToInt32(isolate, args[idx + 1])};
 }
 
-inline std::optional<d2bs::game::Size> Size(const v8::FunctionCallbackInfo<v8::Value>& args, int idx) {
+inline std::optional<game::Size> Size(const v8::FunctionCallbackInfo<v8::Value>& args, int idx) {
     if (args.Length() <= idx + 1)
         return std::nullopt;
     auto* isolate = args.GetIsolate();
-    return d2bs::game::Size{.width = v8_convert::ToUint32(isolate, args[idx]),
+    return game::Size{.width = v8_convert::ToUint32(isolate, args[idx]),
                             .height = v8_convert::ToUint32(isolate, args[idx + 1])};
 }
 
@@ -109,7 +108,7 @@ inline std::optional<d2bs::game::Size> Size(const v8::FunctionCallbackInfo<v8::V
 // applied if the corresponding args[idx]/args[idx+1] IsNumber().
 // ============================================================================
 
-inline void PointInto(const v8::FunctionCallbackInfo<v8::Value>& args, int idx, std::atomic<d2bs::game::Point>& out) {
+inline void PointInto(const v8::FunctionCallbackInfo<v8::Value>& args, int idx, std::atomic<game::Point>& out) {
     auto* isolate = args.GetIsolate();
     auto cur = out.load();
     if (args.Length() > idx && args[idx]->IsNumber())
@@ -119,7 +118,7 @@ inline void PointInto(const v8::FunctionCallbackInfo<v8::Value>& args, int idx, 
     out.store(cur);
 }
 
-inline void SizeInto(const v8::FunctionCallbackInfo<v8::Value>& args, int idx, std::atomic<d2bs::game::Size>& out) {
+inline void SizeInto(const v8::FunctionCallbackInfo<v8::Value>& args, int idx, std::atomic<game::Size>& out) {
     auto* isolate = args.GetIsolate();
     auto cur = out.load();
     if (args.Length() > idx && args[idx]->IsNumber())

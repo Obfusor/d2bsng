@@ -155,7 +155,7 @@ ClickResult ClickItem(ClickButton button, const Unit& item);
 ClickResult ClickContainerSlot(ClickButton button, Position gridPos, ItemLocation container);
 void ClickPartyMember(const Party& party, PartyMode mode);
 void LeaveParty();
-uint32_t CheckUnitCollision(const game::Unit& unit1, const game::Unit& unit2, uint32_t mask);
+uint32_t CheckUnitCollision(const Unit& unit1, const Unit& unit2, uint32_t mask);
 // === Skill Name Tables ===
 std::optional<uint16_t> GetSkillByName(std::string_view name);
 

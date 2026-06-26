@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -31,13 +30,13 @@ inline void ThrowRangeError(v8::Isolate* isolate, std::string_view message) {
 
 // Log a warning and set return value to false (caller must return afterward).
 inline void WarnAndReturnFalse(const v8::FunctionCallbackInfo<v8::Value>& args, std::string_view message) {
-    d2bs::GetLogger(args.GetIsolate())->warn("{}", message);
+    GetLogger(args.GetIsolate())->warn("{}", message);
     args.GetReturnValue().SetFalse();
 }
 
 // Log an error without throwing a JS exception (caller must return afterward).
 inline void ReportError(const v8::FunctionCallbackInfo<v8::Value>& args, std::string_view message) {
-    d2bs::GetLogger(args.GetIsolate())->error("{}", message);
+    GetLogger(args.GetIsolate())->error("{}", message);
 }
 
 // ============================================================================

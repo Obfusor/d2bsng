@@ -1,7 +1,6 @@
 // d2bs/api/core/V8InstanceTracker.h
 #pragma once
 
-#include <cstdint>
 #include <functional>
 #include <map>
 #include <mutex>

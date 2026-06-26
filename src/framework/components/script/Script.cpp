@@ -38,7 +38,7 @@ Script::Script(std::filesystem::path path, ScriptMode mode, std::vector<std::vec
       normalizedPath_(NormalizePath(path_)),
       mode_(mode),
       args_(std::move(args)),
-      logger_(d2bs::utils::GetLogger(path_.filename().string())) {}
+      logger_(utils::GetLogger(path_.filename().string())) {}
 
 std::shared_ptr<spdlog::logger> GetLogger(v8::Isolate* isolate) {
     if (auto* script = ScriptEngine::Instance().GetScript(isolate)) {
@@ -109,8 +109,8 @@ void Script::Join() {
         // that's blocked on GameReadLock, or a script holding GameReadLock
         // joining a thread that needs GameThread::Execute to drain.
         // Each releaser is a no-op when its lock isn't held on this thread.
-        d2bs::game::GameWriteLockReleaser writeReleaser;
-        d2bs::game::GameReadLockReleaser readReleaser;
+        game::GameWriteLockReleaser writeReleaser;
+        game::GameReadLockReleaser readReleaser;
         thread_.join();
     }
 }
@@ -192,12 +192,12 @@ void Script::ThreadMain(const std::stop_token& stopToken) {
     // Store native Win32 thread ID for JS threadid property (avoids hash truncation)
     nativeThreadId_.store(GetCurrentThreadId(), std::memory_order_relaxed);
 
-    d2bs::thread_utils::SetThreadDescription(GetName());
+    thread_utils::SetThreadDescription(GetName());
 
     // Script threads run user JS; their Date.now / delay / setTimeout
     // should observe the global time multiplier. V8's internal worker
     // pool runs on threads we never touch, so those stay on real time.
-    d2bs::speedhack::OptInCurrentThread();
+    speedhack::OptInCurrentThread();
 
     logger_->debug("Thread starting: {}", path_.string());
 
@@ -304,14 +304,14 @@ void Script::SetupIsolate() {
     // crash log next to Game.exe, then exit with a distinctive code.
     iso->SetFatalErrorHandler(+[](const char* location, const char* message) {
         auto dump = std::format("V8 fatal error at '{}': {}\n{}\n", location ? location : "<null>",
-                                message ? message : "<null>", d2bs::thread_utils::GetThreadStacktrace());
-        d2bs::thread_utils::CrashAndExit(dump, 0xD2B50001);
+                                message ? message : "<null>", thread_utils::GetThreadStacktrace());
+        thread_utils::CrashAndExit(dump, 0xD2B50001);
     });
     iso->SetOOMErrorHandler(+[](const char* location, const v8::OOMDetails& details) {
         auto dump = std::format("V8 OOM at '{}': {} (heap_oom={})\n{}\n", location ? location : "<null>",
                                 details.detail ? details.detail : "<null>", details.is_heap_oom,
-                                d2bs::thread_utils::GetThreadStacktrace());
-        d2bs::thread_utils::CrashAndExit(dump, 0xD2B50002);
+                                thread_utils::GetThreadStacktrace());
+        thread_utils::CrashAndExit(dump, 0xD2B50002);
     });
 
     // Wrap in shared_ptr with a custom deleter that captures the allocator,
@@ -598,16 +598,16 @@ void Script::ReportException(v8::TryCatch& tryCatch) {
     // and we're in a game, leave the current game so the outer bot loop can
     // recover. Console scripts are exempted: a typo in the live REPL shouldn't
     // kick the user out of their game.
-    if (mode_ != ScriptMode::InGame && d2bs::config::GetAppConfig().quitOnError.load() &&
-        d2bs::game::GetGameState() == d2bs::game::GameState::InGame) {
-        d2bs::game::ExitGame();
+    if (mode_ != ScriptMode::InGame && config::GetAppConfig().quitOnError.load() &&
+        game::GetGameState() == game::GameState::InGame) {
+        game::ExitGame();
     }
 }
 
 std::filesystem::path Script::NormalizePath(const std::filesystem::path& path) {
     auto str = path.string();
     std::ranges::replace(str, '\\', '/');
-    return {d2bs::utils::ToLower(std::move(str))};
+    return {utils::ToLower(std::move(str))};
 }
 
 void Script::UpdateHeapStats(bool force) {
@@ -705,11 +705,11 @@ void Script::RefreshLastStackTrace(int32_t maxFrames) {
         const v8::String::Utf8Value scriptName(iso, v8frame->GetScriptName());
         StackFrame f;
         if (*funcName != nullptr && funcName.length() > 0) {
-            f.functionName.assign(*funcName, static_cast<size_t>(funcName.length()));
+            f.functionName.assign(*funcName, funcName.length());
         }
         if (*scriptName != nullptr && scriptName.length() > 0) {
             // Trim base path so stack traces show e.g. "libs/common/Town.js" not the full install path.
-            const std::string_view raw{*scriptName, static_cast<size_t>(scriptName.length())};
+            const std::string_view raw{*scriptName, (scriptName.length())};
             f.scriptName = TrimScriptBase(raw, baseStr);
         }
         f.line = v8frame->GetLineNumber();

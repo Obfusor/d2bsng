@@ -24,7 +24,7 @@
 namespace d2bs::framework::gameloop {
 
 GameLoop::GameLoop() {
-    logger_ = d2bs::utils::GetLogger("loop");
+    logger_ = utils::GetLogger("loop");
 }
 
 GameLoop& GameLoop::Instance() {
@@ -48,8 +48,8 @@ void GameLoop::ResetForTesting() {
     // OnSleep leaves the game-thread write lock held on exit via the manual
     // Acquire/Release lifecycle. Reset that so each TEST_CASE starts with no
     // lock held, matching writeLockHeld_=false (first tick does not Release).
-    if (d2bs::game::GameWriteLock::IsHeldByCurrentThread()) {
-        d2bs::game::GameWriteLock::Release();
+    if (game::GameWriteLock::IsHeldByCurrentThread()) {
+        game::GameWriteLock::Release();
     }
 }
 #endif
@@ -58,7 +58,7 @@ void GameLoop::OnSleep(std::chrono::milliseconds duration) {
     // Defensive: a Sleep arriving on the game thread before
     // ScriptEngine::Initialize completes should be a no-op. The hook may be
     // installed before engine init in some Framework init orderings.
-    if (!d2bs::ScriptEngine::Instance().IsInitialized()) {
+    if (!ScriptEngine::Instance().IsInitialized()) {
         return;
     }
 
@@ -83,7 +83,7 @@ void GameLoop::OnSleep(std::chrono::milliseconds duration) {
     const auto deadline = std::chrono::steady_clock::now() + duration;
 
     Snapshot cur;
-    d2bs::game::InvalidateHandles();
+    game::InvalidateHandles();
     TakeSnapshot(cur);
 
     // Carry the session latch forward across transient states. `InGame` sets
@@ -93,9 +93,9 @@ void GameLoop::OnSleep(std::chrono::milliseconds duration) {
     // `prev.inSession` vs `cur.inSession` the same way they already compute
     // `stateChanged`, `profileChanged`, etc.
     cur.inSession = previous_.inSession;
-    if (cur.state == d2bs::game::GameState::InGame) {
+    if (cur.state == game::GameState::InGame) {
         cur.inSession = true;
-    } else if (cur.state == d2bs::game::GameState::Menu) {
+    } else if (cur.state == game::GameState::Menu) {
         cur.inSession = false;
     }
 
@@ -116,20 +116,20 @@ void GameLoop::OnSleep(std::chrono::milliseconds duration) {
         // escapes; see game/Console.h). 8 = orange, an attention color distinct
         // from the usual white system text.
         constexpr int32_t UPDATE_NOTICE_COLOR = 8;
-        d2bs::game::PrintGameString(update::UpdateChecker::Instance().Message(), UPDATE_NOTICE_COLOR);
+        game::PrintGameString(update::UpdateChecker::Instance().Message(), UPDATE_NOTICE_COLOR);
     }
 
-    d2bs::game::GameThread::Drain();
+    game::GameThread::Drain();
 
     previous_ = cur;
 
     if (writeLockHeld_) {
-        d2bs::game::GameWriteLock::Release();
+        game::GameWriteLock::Release();
         // Release for idleSleep-ms real-wall slices so script readers get windows,
         // re-draining each slice; yield under 1ms wall left. A large
         // IdleSleepIntervalMs just coarsens the deadline re-check (idle CPU vs latency).
-        const float speed = d2bs::speedhack::GetSpeed();
-        const auto idleSleep = d2bs::config::GetAppConfig().idleSleepInterval;
+        const float speed = speedhack::GetSpeed();
+        const auto idleSleep = config::GetAppConfig().idleSleepInterval;
         while (true) {
             auto now = std::chrono::steady_clock::now();
             if (now >= deadline) {
@@ -139,14 +139,14 @@ void GameLoop::OnSleep(std::chrono::milliseconds duration) {
             if (static_cast<float>(remainingVirtMs) < speed) {
                 std::this_thread::yield();
             } else {
-                d2bs::speedhack::SpeedhackDisabledScope realWaits;
+                speedhack::SpeedhackDisabledScope realWaits;
                 std::this_thread::sleep_for(idleSleep);
             }
-            d2bs::game::GameWriteLock lock;
-            d2bs::game::GameThread::Drain();
+            game::GameWriteLock lock;
+            game::GameThread::Drain();
         }
     }
-    d2bs::game::GameWriteLock::Acquire();
+    game::GameWriteLock::Acquire();
     writeLockHeld_ = true;
 }
 
@@ -158,17 +158,17 @@ void GameLoop::OnDraw() const {
 
 void GameLoop::EvaluateChicken(const Snapshot& cur) {
     // Only evaluate in-game and when a player was observed.
-    if (cur.state != d2bs::game::GameState::InGame || !cur.hp.has_value() || !cur.mp.has_value()) {
+    if (cur.state != game::GameState::InGame || !cur.hp.has_value() || !cur.mp.has_value()) {
         return;
     }
 
     // Town exclusion: HP/MP thresholds do not trigger in town (reference
     // D2Handlers.cpp:75 gates the HP/MP branch on !IsTownByLevelNo).
-    if (d2bs::game::IsTownByLevelNo(cur.areaId)) {
+    if (game::IsTownByLevelNo(cur.areaId)) {
         return;
     }
 
-    auto& cfg = d2bs::config::GetAppConfig();
+    auto& cfg = config::GetAppConfig();
 
     // Reference (D2Handlers.cpp:75-76) compares the configured threshold
     // against absolute HP/MP returned by GetUnitHP/GetUnitMP (STAT_HP >> 8),
@@ -176,14 +176,14 @@ void GameLoop::EvaluateChicken(const Snapshot& cur) {
     int32_t chickenHp = cfg.chickenHp.load();
     if (chickenHp > 0 && *cur.hp <= static_cast<uint32_t>(chickenHp)) {
         logger_->info("chicken triggered by HP ({} <= {})", *cur.hp, chickenHp);
-        d2bs::game::ExitGame();
+        game::ExitGame();
         return;
     }
 
     int32_t chickenMp = cfg.chickenMp.load();
     if (chickenMp > 0 && *cur.mp <= static_cast<uint32_t>(chickenMp)) {
         logger_->info("chicken triggered by MP ({} <= {})", *cur.mp, chickenMp);
-        d2bs::game::ExitGame();
+        game::ExitGame();
     }
 }
 
@@ -202,11 +202,11 @@ void GameLoop::EvaluateMaxGameTime(const Snapshot& prev, const Snapshot& cur) {
     // Only chicken when we're actually in-game (not during transient
     // Busy/Null) - the underlying ExitGame can't reliably trigger when the
     // game UI is mid-transition.
-    if (cur.state != d2bs::game::GameState::InGame) {
+    if (cur.state != game::GameState::InGame) {
         return;
     }
 
-    auto maxGameTime = d2bs::config::GetAppConfig().maxGameTime.load();
+    auto maxGameTime = config::GetAppConfig().maxGameTime.load();
     if (maxGameTime.count() <= 0) {
         return;
     }
@@ -222,7 +222,7 @@ void GameLoop::EvaluateMaxGameTime(const Snapshot& prev, const Snapshot& cur) {
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - anchor);
     if (elapsed >= maxGameTime) {
         logger_->info("chicken triggered by maxGameTime ({}ms)", maxGameTime.count());
-        d2bs::game::ExitGame();
+        game::ExitGame();
     }
 }
 
@@ -251,12 +251,12 @@ void GameLoop::ReloadPathsForProfile(const std::string& name) {
     if (name.empty()) {
         return;
     }
-    auto profile = d2bs::profile::Load(name);
+    auto profile = profile::Load(name);
     if (!profile) {
         return;
     }
 
-    auto& cfg = d2bs::config::GetAppConfig();
+    auto& cfg = config::GetAppConfig();
     auto oldPaths = cfg.GetScriptPaths();
     // Start from the settings baseline, not the previously-resolved paths -
     // otherwise overrides from an earlier profile stick when switching to a
@@ -285,7 +285,7 @@ void GameLoop::ReloadPathsForProfile(const std::string& name) {
     const bool consoleChanged = newPaths.consoleScript != oldPaths.consoleScript;
     cfg.SetScriptPaths(std::move(newPaths));
     if (consoleChanged) {
-        d2bs::ScriptEngine::Instance().RestartConsoleScript();
+        ScriptEngine::Instance().RestartConsoleScript();
     }
 }
 
@@ -300,7 +300,7 @@ void GameLoop::DriveScriptLifecycle(const Snapshot& prev, const Snapshot& cur) {
     const bool latchCleared = prev.waitForProfile;
     // Profile names preserve user-supplied case at storage; compare case-insensitively
     // so Switch("foo") followed by Switch("FOO") does not trigger a relaunch.
-    const bool profileChanged = !d2bs::utils::EqualsCaseInsensitive(prev.profileName, cur.profileName);
+    const bool profileChanged = !utils::EqualsCaseInsensitive(prev.profileName, cur.profileName);
     const bool sessionEntered = !prev.inSession && cur.inSession;
     const bool sessionExited = prev.inSession && !cur.inSession;
 
@@ -315,23 +315,23 @@ void GameLoop::DriveScriptLifecycle(const Snapshot& prev, const Snapshot& cur) {
         return;
     }
 
-    auto& engine = d2bs::ScriptEngine::Instance();
-    auto paths = d2bs::config::GetAppConfig().GetScriptPaths();
+    auto& engine = ScriptEngine::Instance();
+    auto paths = config::GetAppConfig().GetScriptPaths();
 
-    auto startStarter = [&](const std::string& name, d2bs::ScriptMode mode) {
+    auto startStarter = [&](const std::string& name, ScriptMode mode) {
         if (name.empty()) {
             return;
         }
         auto path = paths.basePath / name;
         if (engine.StartScript(path, mode)) {
-            logger_->info("started {} ({})", name, mode == d2bs::ScriptMode::InGame ? "InGame" : "OutOfGame");
+            logger_->info("started {} ({})", name, mode == ScriptMode::InGame ? "InGame" : "OutOfGame");
         } else {
             logger_->warn("failed to start {}", name);
         }
     };
 
-    auto stopMode = [&](d2bs::ScriptMode mode) {
-        engine.ForEachScript([mode](const std::shared_ptr<d2bs::Script>& script) {
+    auto stopMode = [&](ScriptMode mode) {
+        engine.ForEachScript([mode](const std::shared_ptr<Script>& script) {
             if (script->GetMode() == mode) {
                 script->Stop();
             }
@@ -344,11 +344,11 @@ void GameLoop::DriveScriptLifecycle(const Snapshot& prev, const Snapshot& cur) {
     // so the in-game script keeps running across them. Profile-change
     // mid-game is the only other valid restart trigger.
     if (sessionExited) {
-        stopMode(d2bs::ScriptMode::InGame);
+        stopMode(ScriptMode::InGame);
     }
-    if (sessionEntered || (profileChanged && cur.state == d2bs::game::GameState::InGame)) {
-        stopMode(d2bs::ScriptMode::InGame);
-        startStarter(paths.gameScript, d2bs::ScriptMode::InGame);
+    if (sessionEntered || (profileChanged && cur.state == game::GameState::InGame)) {
+        stopMode(ScriptMode::InGame);
+        startStarter(paths.gameScript, ScriptMode::InGame);
     }
 
     // ----- OutOfGame (menu) script lifecycle -----
@@ -357,27 +357,27 @@ void GameLoop::DriveScriptLifecycle(const Snapshot& prev, const Snapshot& cur) {
     // first Menu entry is additionally gated on AppConfig.startAtMenu so
     // launchers that want to defer starter selection to a user action can
     // suppress auto-start without setting waitForProfile.
-    if (cur.state == d2bs::game::GameState::Menu) {
+    if (cur.state == game::GameState::Menu) {
         // firstMenuEntry: non-InGame predecessor - captures Null->Menu and
         // any future Busy->Menu transitions.
-        const bool firstMenuEntry = prev.state != d2bs::game::GameState::InGame;
+        const bool firstMenuEntry = prev.state != game::GameState::InGame;
         const bool userRequested = latchCleared || profileChanged;
-        const bool autoStartAllowed = firstMenuEntry && d2bs::config::GetAppConfig().startAtMenu.load();
+        const bool autoStartAllowed = firstMenuEntry && config::GetAppConfig().startAtMenu.load();
         if (userRequested || autoStartAllowed) {
-            stopMode(d2bs::ScriptMode::OutOfGame);
-            startStarter(paths.starterScript, d2bs::ScriptMode::OutOfGame);
+            stopMode(ScriptMode::OutOfGame);
+            startStarter(paths.starterScript, ScriptMode::OutOfGame);
         }
     }
 }
 
 void GameLoop::TakeSnapshot(Snapshot& out) {
-    out.state = d2bs::game::GetGameState();
+    out.state = game::GetGameState();
 
-    auto& cfg = d2bs::config::GetAppConfig();
+    auto& cfg = config::GetAppConfig();
     out.waitForProfile = cfg.waitForProfile.load(std::memory_order_acquire);
     out.profileName = cfg.GetProfileName();
 
-    auto player = d2bs::game::Unit::Player();
+    auto player = game::Unit::Player();
     if (!player) {
         return;
     }

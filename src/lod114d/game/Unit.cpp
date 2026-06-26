@@ -1,7 +1,6 @@
 #include "game/Unit.h"
 
 #include "asm_thunks/asm_thunks.h"
-#include "game/Bridge.h"
 #include "game/Constants.h"
 #include "game/GameHelpers.h"
 #include "game/GameLock.h"
@@ -39,7 +38,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <optional>
 #include <string>
@@ -55,8 +53,8 @@ inline D2UnitStrc* AsUnit(void* p) noexcept {
 
 // Reference parity: D2 unit hash tables - 6 type buckets x 128 hash entries.
 // Constants and struct now live in imports/extras/D2UnitHashTables.h.
-using d2bs::imports::extras::UNIT_HASH_BUCKETS;
-using d2bs::imports::extras::UNIT_HASH_TYPE_COUNT;
+using imports::extras::UNIT_HASH_BUCKETS;
+using imports::extras::UNIT_HASH_TYPE_COUNT;
 
 // Reference parity: D2 stores hp/mana/stamina (stat ids 6..11) in 8.8 fixed point.
 constexpr uint32_t STAT_FIXED_POINT_FIRST = 6;
@@ -88,7 +86,7 @@ constexpr uint32_t UI_GAME = 0x00;
 constexpr uint32_t UI_NPCSHOP = 0x0C;
 
 // Walk the per-type unit hash table looking for the first non-null bucket.
-D2UnitStrc* FirstUnitInTable(const d2bs::imports::extras::D2UnitHashTable* table) {
+D2UnitStrc* FirstUnitInTable(const D2UnitHashTable* table) {
     if (table == nullptr) {
         return nullptr;
     }
@@ -102,7 +100,7 @@ D2UnitStrc* FirstUnitInTable(const d2bs::imports::extras::D2UnitHashTable* table
 
 // Resolve a per-type table pointer for either the server or client unit
 // registry. Returns nullptr when the type is out of range.
-const d2bs::imports::extras::D2UnitHashTable* TableForType(const d2bs::imports::extras::D2UnitHashTables* tables,
+const D2UnitHashTable* TableForType(const D2UnitHashTables* tables,
                                                            UnitType type) {
     const auto typeIdx = static_cast<uint32_t>(type);
     if (tables == nullptr || typeIdx >= UNIT_HASH_TYPE_COUNT) {
@@ -500,7 +498,7 @@ std::vector<StatEntry> Unit::GetDetailedStats() const {
         }
     };
 
-    appendList(static_cast<D2StatListStrc*>(u->pStatListEx));
+    appendList(u->pStatListEx);
     appendList(imports::d2common::STATLIST_GetStatListFromUnitStateAndFlag(u, 0U, STAT_LIST_PRESET_FLAG));
     return out;
 }
@@ -522,7 +520,7 @@ std::string Unit::Name() const {
         }
         case UNIT_MONSTER: {
             const auto* wName = imports::d2client::UNITS_GetName(unit);
-            return wName ? d2bs::utils::ToStr(std::wstring{wName}) : std::string{};
+            return wName ? utils::ToStr(std::wstring{wName}) : std::string{};
         }
         case UNIT_ITEM: {
             std::array<wchar_t, 256> buf{};
@@ -532,7 +530,7 @@ std::string Unit::Name() const {
             if (auto nl = s.find(L'\n'); nl != std::wstring::npos) {
                 s.resize(nl);
             }
-            return d2bs::utils::ToStr(s);
+            return utils::ToStr(s);
         }
         case UNIT_OBJECT:
         case UNIT_TILE: {
@@ -554,7 +552,7 @@ std::string Unit::ItemFullName() const {
     // 256 wchars matches reference (JSUnit.cpp:1538, D2Helpers.cpp).
     std::array<wchar_t, 256> buf{};
     imports::d2client::ITEMS_GetName(u, buf.data(), buf.size());
-    return d2bs::utils::ToStr(std::wstring{buf.data()});
+    return utils::ToStr(std::wstring{buf.data()});
 }
 
 // === Unit info ===
@@ -583,7 +581,7 @@ std::optional<uint32_t> Unit::UniqueId() const {
         if ((flags & MON_FLAG_BOSS) == 0 || (flags & MON_FLAG_NORMAL) == 0) {
             return std::nullopt;
         }
-        return static_cast<uint32_t>(u->pMonsterData->wBossHcIdx);
+        return u->pMonsterData->wBossHcIdx;
     }
     if (u->dwUnitType == UNIT_ITEM) {
         if (u->pItemData == nullptr ||
@@ -636,21 +634,21 @@ std::optional<Unit> Unit::GetOwner() const {
             if (ownerId == NO_OWNER_GUID) {
                 return std::nullopt;
             }
-            return Unit::Find(ownerId, std::nullopt);
+            return Find(ownerId, std::nullopt);
         }
         case UNIT_MISSILE: {
             auto* owner = imports::d2common::MISSILE_GetOwnerUnit(u);
             if (owner == nullptr) {
                 return std::nullopt;
             }
-            return Unit::FromPtr(owner);
+            return FromPtr(owner);
         }
         case UNIT_ITEM: {
             if (u->pItemData == nullptr || u->pItemData->pExtraData.pParentInv == nullptr ||
                 u->pItemData->pExtraData.pParentInv->pOwner == nullptr) {
                 return std::nullopt;
             }
-            return Unit::FromPtr(u->pItemData->pExtraData.pParentInv->pOwner);
+            return FromPtr(u->pItemData->pExtraData.pParentInv->pOwner);
         }
         default:
             return std::nullopt;
@@ -797,9 +795,9 @@ NodePage Unit::Node() const {
 ItemLocation Unit::ItemLocation() const {
     auto* u = AsUnit(ResolvePtr());
     if (u == nullptr || u->dwUnitType != UNIT_ITEM || u->pItemData == nullptr) {
-        return d2bs::game::ItemLocation::Null;
+        return ItemLocation::Null;
     }
-    return static_cast<d2bs::game::ItemLocation>(u->pItemData->pExtraData.nNodePos);
+    return static_cast<game::ItemLocation>(u->pItemData->pExtraData.nNodePos);
 }
 
 Size Unit::Size() const {
@@ -875,9 +873,9 @@ std::string Unit::Description() const {
 BodyLocation Unit::BodyLocation() const {
     auto* u = AsUnit(ResolvePtr());
     if (u == nullptr || u->dwUnitType != UNIT_ITEM || u->pItemData == nullptr) {
-        return d2bs::game::BodyLocation::None;
+        return BodyLocation::None;
     }
-    return static_cast<d2bs::game::BodyLocation>(u->pItemData->nBodyLoc);
+    return static_cast<game::BodyLocation>(u->pItemData->nBodyLoc);
 }
 
 uint32_t Unit::ItemLevel() const {
@@ -1002,7 +1000,7 @@ std::optional<Unit> Unit::GetFirstItem() const {
     // (owner-guarded). Without this kind tag, getNext() would route through
     // FindNext (the hash-table walker), which walks the global item table and
     // would return items from other inventories (e.g. vendor stock).
-    Unit handle = Unit::FromPtr(item);
+    Unit handle = FromPtr(item);
     handle.kind_ = UnitKind::InventoryItem;
     handle.cursor_.ownerId = u->dwUnitId;
     handle.cursor_.ownerType = static_cast<UnitType>(u->dwUnitType);
@@ -1030,7 +1028,7 @@ std::optional<Unit> Unit::GetNextItem() const {
     if (next->pItemData->pExtraData.pParentInv != curInv) {
         return std::nullopt;
     }
-    Unit handle = Unit::FromPtr(next);
+    Unit handle = FromPtr(next);
     handle.kind_ = UnitKind::InventoryItem;
     handle.cursor_ = cursor_;  // propagate owner anchor from the previous item
     return handle;
@@ -1042,7 +1040,7 @@ std::optional<Unit> Unit::GetFirstInGame(UnitType type) {
                                                      : imports::d2client::gServerSideUnitHashTables.Ptr();
     const auto* table = TableForType(tables, type);
     if (auto* head = FirstUnitInTable(table)) {
-        return Unit::FromPtr(head);
+        return FromPtr(head);
     }
     return std::nullopt;
 }
@@ -1054,7 +1052,7 @@ std::optional<Unit> Unit::GetNextInGame() const {
         return std::nullopt;
     }
     if (auto* next = u->pListNext) {
-        return Unit::FromPtr(next);
+        return FromPtr(next);
     }
     const auto* tables = (u->dwUnitType == UNIT_MISSILE) ? imports::d2client::gClientSideUnitHashTables.Ptr()
                                                          : imports::d2client::gServerSideUnitHashTables.Ptr();
@@ -1066,7 +1064,7 @@ std::optional<Unit> Unit::GetNextInGame() const {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index) - bounded by UNIT_HASH_BUCKETS
     for (uint32_t b = bucket + 1; b < UNIT_HASH_BUCKETS; ++b) {
         if (auto* head = table->buckets[b]) {
-            return Unit::FromPtr(head);
+            return FromPtr(head);
         }
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
@@ -1126,7 +1124,7 @@ std::string Unit::GetSkillName(Hand hand) const {
         return {};
     }
     const auto* localized = imports::d2lang::D2LANG_GetLocaleText(static_cast<uint16_t>(*strRow));
-    return localized ? d2bs::utils::ToStr(std::wstring{localized}) : std::string{};
+    return localized ? utils::ToStr(std::wstring{localized}) : std::string{};
 }
 
 uint16_t Unit::GetSkillId(Hand hand) const {
@@ -1218,8 +1216,8 @@ bool Unit::Interact() const {
     // mis-fire packet 0x20 with stale node coords.
     if (u->dwUnitType == UNIT_ITEM && u->pItemData != nullptr && u->dwItemMode != IMODE_ONGROUND &&
         u->dwItemMode != IMODE_DROPPING) {
-        const auto location = static_cast<d2bs::game::ItemLocation>(u->pItemData->pExtraData.nNodePos);
-        if (location == d2bs::game::ItemLocation::Inventory || location == d2bs::game::ItemLocation::Stash) {
+        const auto location = static_cast<game::ItemLocation>(u->pItemData->pExtraData.nNodePos);
+        if (location == ItemLocation::Inventory || location == ItemLocation::Stash) {
             auto* player = imports::d2client::UNITS_GetPlayerUnit();
             D2GSPacketClt20 packet{};
             packet.nHeader = 0x20U;
@@ -1229,7 +1227,7 @@ bool Unit::Interact() const {
             imports::d2net::CLIENT_Send(sizeof(packet), 1U, reinterpret_cast<uint8_t*>(&packet));
             return false;
         }
-        if (location == d2bs::game::ItemLocation::Belt) {
+        if (location == ItemLocation::Belt) {
             D2GSPacketClt26 packet{};
             packet.nHeader = 0x26U;
             packet.nItemGUID = static_cast<int32_t>(u->dwUnitId);
@@ -1366,7 +1364,7 @@ void Unit::Overhead(const std::string& text) const {
     if (u == nullptr || text.empty()) {
         return;
     }
-    auto ansi = d2bs::utils::ToStr(d2bs::utils::ToWStr(text), CP_ACP);
+    auto ansi = utils::ToStr(utils::ToWStr(text), CP_ACP);
     auto* msg = imports::d2common::CHAT_AllocHoverMsg(nullptr, ansi.c_str(), *imports::d2client::gnOverheadTrigger);
     if (msg == nullptr) {
         return;
@@ -1526,14 +1524,14 @@ std::optional<Unit> Unit::Find(uint32_t id, std::optional<UnitType> type) {
     GameReadLock guard;
     if (type) {
         if (auto* u = FindUnitInHashTable(id, *type)) {
-            return Unit::FromPtr(u);
+            return FromPtr(u);
         }
         return std::nullopt;
     }
     // No type constraint - try every type bucket in turn (0..5).
     for (uint32_t t = 0; t < UNIT_HASH_TYPE_COUNT; ++t) {
         if (auto* u = FindUnitInHashTable(id, static_cast<UnitType>(t))) {
-            return Unit::FromPtr(u);
+            return FromPtr(u);
         }
     }
     return std::nullopt;
@@ -1544,7 +1542,7 @@ std::optional<Unit> Unit::CursorItem() {
     if (p == nullptr) {
         return std::nullopt;
     }
-    return Unit::FromPtr(p);
+    return FromPtr(p);
 }
 
 std::optional<Unit> Unit::Selected() {
@@ -1552,7 +1550,7 @@ std::optional<Unit> Unit::Selected() {
     if (p == nullptr) {
         return std::nullopt;
     }
-    return Unit::FromPtr(p);
+    return FromPtr(p);
 }
 
 std::optional<Unit> Unit::SelectedInventoryItem() {
@@ -1565,7 +1563,7 @@ std::optional<Unit> Unit::SelectedInventoryItem() {
     // routing it through FindNextInventoryItem would gate on the missing
     // anchor and return nullopt forever. Leave kind_ as Regular so getNext()
     // walks the regular hash table from the resolved unit.
-    return Unit::FromPtr(p);
+    return FromPtr(p);
 }
 
 std::optional<Unit> Unit::InteractingNPC() {
@@ -1573,7 +1571,7 @@ std::optional<Unit> Unit::InteractingNPC() {
     if (p == nullptr) {
         return std::nullopt;
     }
-    return Unit::FromPtr(p);
+    return FromPtr(p);
 }
 
 }  // namespace d2bs::game

@@ -106,7 +106,7 @@ Party Party::GetNext() const {
     if (p == nullptr) {
         return Party();
     }
-    return Party::FromPtr(p->pNext);
+    return FromPtr(p->pNext);
 }
 
 std::optional<Party> Party::GetFirst() {
@@ -115,7 +115,7 @@ std::optional<Party> Party::GetFirst() {
     if (first == nullptr) {
         return std::nullopt;
     }
-    return Party::FromPtr(first);
+    return FromPtr(first);
 }
 
 }  // namespace d2bs::game

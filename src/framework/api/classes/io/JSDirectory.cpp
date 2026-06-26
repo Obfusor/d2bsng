@@ -1,7 +1,6 @@
 #include "JSDirectory.h"
 
 #include <Shlwapi.h>
-#include <Windows.h>
 
 #include "utils/utils.h"
 
@@ -18,7 +17,7 @@ std::vector<std::string> ListFiles(const std::filesystem::path& fullPath, const 
         return results;
     }
 
-    auto widePattern = d2bs::utils::ToWStr(pattern);
+    auto widePattern = utils::ToWStr(pattern);
 
     for (const auto& entry : iter) {
         if (entry.is_directory(ec)) {
@@ -42,7 +41,7 @@ std::vector<std::string> ListFolders(const std::filesystem::path& fullPath, cons
         return results;
     }
 
-    auto widePattern = d2bs::utils::ToWStr(pattern);
+    auto widePattern = utils::ToWStr(pattern);
 
     for (const auto& entry : iter) {
         if (!entry.is_directory(ec)) {

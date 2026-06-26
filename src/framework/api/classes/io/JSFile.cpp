@@ -1,8 +1,6 @@
 #include "JSFile.h"
 
-#include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 
 #include <fmt/format.h>
@@ -14,7 +12,7 @@
 namespace d2bs::api::classes::file_detail {
 
 FILE* FileOpenRelScript(v8::Isolate* isolate, const std::string& relativePath, const wchar_t* mode) {
-    auto fullPath = d2bs::config::GetPathRelScript(relativePath);
+    auto fullPath = config::GetPathRelScript(relativePath);
     if (fullPath.empty()) {
         v8_error::ThrowError(isolate, "Invalid file name");
         return nullptr;

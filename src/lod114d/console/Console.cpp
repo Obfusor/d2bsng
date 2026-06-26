@@ -12,7 +12,6 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <cstring>
 #include <thread>
 
 #include "components/console/Console.h"
@@ -82,7 +81,7 @@ void HandleRawKeyboard(LPARAM lp) {
     const USHORT vkey = ri.data.keyboard.VKey;
     const bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
     if (ctrl && (vkey == VK_CANCEL || vkey == VK_PAUSE)) {
-        HWND gameHwnd = d2bs::imports::d2gfx::WINDOW_GetWindow();
+        HWND gameHwnd = imports::d2gfx::WINDOW_GetWindow();
         if (gameHwnd != nullptr && gameHwnd == GetForegroundWindow()) {
             Show();
         }
@@ -154,12 +153,12 @@ void DestroyGL(HWND hwnd, GLState& gl) {
 // console hwnd. No-op if the read fails or the composed title already matches.
 // Runs on the console (render) thread.
 void ApplyGameTitle(HWND consoleWnd) {
-    HWND gameHwnd = d2bs::imports::d2gfx::WINDOW_GetWindow();
+    HWND gameHwnd = imports::d2gfx::WINDOW_GetWindow();
     if (gameHwnd == nullptr) {
         return;
     }
     std::array<wchar_t, 192> gameTitle{};
-    const int32_t gameLen = GetWindowTextW(gameHwnd, gameTitle.data(), static_cast<int32_t>(gameTitle.size()));
+    const int32_t gameLen = GetWindowTextW(gameHwnd, gameTitle.data(), gameTitle.size());
     if (gameLen <= 0) {
         return;
     }
@@ -175,7 +174,7 @@ void ApplyGameTitle(HWND consoleWnd) {
     desired[static_cast<size_t>(gameLen) + suffixLen] = L'\0';
 
     std::array<wchar_t, 256> current{};
-    const int32_t curLen = GetWindowTextW(consoleWnd, current.data(), static_cast<int32_t>(current.size()));
+    const int32_t curLen = GetWindowTextW(consoleWnd, current.data(), current.size());
     if (curLen > 0 && std::wcscmp(current.data(), desired.data()) == 0) {
         return;
     }
@@ -204,7 +203,7 @@ LRESULT CALLBACK TitleSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 // the title once at install time so the initial state is mirrored without
 // waiting for the first WM_SETTEXT.
 void EnsureGameTitleSubclass(HWND consoleWnd) {
-    HWND gameHwnd = d2bs::imports::d2gfx::WINDOW_GetWindow();
+    HWND gameHwnd = imports::d2gfx::WINDOW_GetWindow();
     if (gameHwnd == nullptr || gameHwnd == subclassedGameHwnd) {
         return;
     }
@@ -260,7 +259,7 @@ LRESULT CALLBACK ConsoleWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 void RenderLoop(const std::stop_token& stop) {
-    d2bs::thread_utils::SetThreadDescription("d2bs console render");
+    thread_utils::SetThreadDescription("d2bs console render");
 
     HINSTANCE hInst = GetModuleHandleW(nullptr);
 
@@ -337,7 +336,7 @@ void RenderLoop(const std::stop_token& stop) {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        d2bs::framework::console::DrawFrame();
+        framework::console::DrawFrame();
 
         ImGui::Render();
 
@@ -400,7 +399,7 @@ void Hide() {
 }
 
 bool IsVisible() {
-    const HWND h = consoleHwnd.load(std::memory_order_acquire);
+    HWND h = consoleHwnd.load(std::memory_order_acquire);
     return h != nullptr && IsWindowVisible(h) != FALSE;
 }
 

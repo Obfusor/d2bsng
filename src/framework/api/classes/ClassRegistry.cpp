@@ -118,8 +118,8 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     // 'me': special Unit handle that always resolves to the current player unit.
 
     // unitId=0, type=0 sentinel: ResolvePtr() returns GetPlayerUnit().
-    auto playerHandle = d2bs::game::Unit::Player();
-    auto me = JSUnit::CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(playerHandle));
+    auto playerHandle = game::Unit::Player();
+    auto me = JSUnit::CreateInstance(isolate, context, std::make_unique<game::Unit>(playerHandle));
     if (me.IsEmpty())
         return {};
 
@@ -128,7 +128,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "account"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetAccountName()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetAccountName()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -138,7 +138,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "charname"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetPlayerName()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetPlayerName()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -148,7 +148,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "diff"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(static_cast<uint32_t>(d2bs::game::GetDifficulty()));
+              info.GetReturnValue().Set(static_cast<uint32_t>(game::GetDifficulty()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -158,7 +158,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "maxdiff"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(static_cast<uint32_t>(d2bs::game::GetMaxDiff()));
+              info.GetReturnValue().Set(static_cast<uint32_t>(game::GetMaxDiff()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -168,7 +168,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "gamename"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetGameName()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetGameName()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -178,7 +178,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "gamepassword"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetGamePassword()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetGamePassword()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -188,7 +188,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "gameserverip"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetGameServerIp()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetGameServerIp()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -202,7 +202,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
               // Game-start anchor as steady_clock epoch ms, matching the
               // getTickCount() domain so script comparisons against it hold;
               // 0 when out of game.
-              auto anchor = d2bs::framework::gameloop::GameLoop::Instance().GameStartTime();
+              auto anchor = framework::gameloop::GameLoop::Instance().GameStartTime();
               double ms = 0.0;
               if (anchor) {
                   auto epochMs = std::chrono::duration_cast<std::chrono::milliseconds>(anchor->time_since_epoch());
@@ -218,7 +218,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "gametype"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetGameType());
+              info.GetReturnValue().Set(game::GetGameType());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -228,7 +228,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "itemoncursor"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::Unit::CursorItem().has_value());
+              info.GetReturnValue().Set(game::Unit::CursorItem().has_value());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -238,7 +238,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "ladder"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              if (const auto ladder = d2bs::game::IsLadder())
+              if (const auto ladder = game::IsLadder())
                   info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), static_cast<double>(ladder.value())));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
@@ -249,7 +249,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "ping"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetPing());
+              info.GetReturnValue().Set(game::GetPing());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -259,7 +259,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "fps"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetFPS());
+              info.GetReturnValue().Set(game::GetFPS());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -269,7 +269,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "locale"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetLocale());
+              info.GetReturnValue().Set(game::GetLocale());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -280,7 +280,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
           context, v8_convert::ToV8(isolate, "playertype"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
               info.GetReturnValue().Set(
-                  (d2bs::game::GetCharFlags() & std::to_underlying(d2bs::game::CharFlag::Hardcore)) != 0);
+                  (game::GetCharFlags() & std::to_underlying(game::CharFlag::Hardcore)) != 0);
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -290,7 +290,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "realm"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetRealmName()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetRealmName()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -301,7 +301,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "realmshort"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetRealmShort()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetRealmShort()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -311,7 +311,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "mercrevivecost"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetMercReviveCost());
+              info.GetReturnValue().Set(game::GetMercReviveCost());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -322,7 +322,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "gameReady"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::IsGameReady());
+              info.GetReturnValue().Set(game::IsGameReady());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -332,7 +332,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "profile"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              auto name = d2bs::config::GetAppConfig().GetProfileName();
+              auto name = config::GetAppConfig().GetProfileName();
               info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), name));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
@@ -354,7 +354,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "unsupported"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::config::GetAppConfig().enableUnsupported.load());
+              info.GetReturnValue().Set(config::GetAppConfig().enableUnsupported.load());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -364,7 +364,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "charflags"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetCharFlags());
+              info.GetReturnValue().Set(game::GetCharFlags());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -374,7 +374,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "screensize"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetScreenSize());
+              info.GetReturnValue().Set(game::GetScreenSize());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -384,7 +384,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "windowtitle"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), d2bs::game::GetWindowTitle()));
+              info.GetReturnValue().Set(v8_convert::ToV8(info.GetIsolate(), game::GetWindowTitle()));
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -395,7 +395,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "ingame"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::IsInGame());
+              info.GetReturnValue().Set(game::IsInGame());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -405,7 +405,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "mapid"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetMapSeed());
+              info.GetReturnValue().Set(game::GetMapSeed());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -415,7 +415,7 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "weaponswitch"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetWeaponSwitch());
+              info.GetReturnValue().Set(game::GetWeaponSwitch());
           },
           nullptr, v8::Local<v8::Value>(), v8::PropertyAttribute::ReadOnly)
         .Check();
@@ -425,10 +425,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "automap"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetAutomapOn());
+              info.GetReturnValue().Set(game::GetAutomapOn());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::game::SetAutomapOn(value->BooleanValue(info.GetIsolate()));
+              game::SetAutomapOn(value->BooleanValue(info.GetIsolate()));
           })
         .Check();
 
@@ -437,10 +437,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "runwalk"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::game::GetAlwaysRun() ? 1U : 0U);
+              info.GetReturnValue().Set(game::GetAlwaysRun() ? 1U : 0U);
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::game::SetAlwaysRun(v8_convert::ToInt32(info.GetIsolate(), value) != 0);
+              game::SetAlwaysRun(v8_convert::ToInt32(info.GetIsolate(), value) != 0);
           })
         .Check();
 
@@ -449,10 +449,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "chickenhp"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::config::GetAppConfig().chickenHp.load());
+              info.GetReturnValue().Set(config::GetAppConfig().chickenHp.load());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::config::GetAppConfig().chickenHp.store(v8_convert::ToInt32(info.GetIsolate(), value));
+              config::GetAppConfig().chickenHp.store(v8_convert::ToInt32(info.GetIsolate(), value));
           })
         .Check();
 
@@ -461,10 +461,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "chickenmp"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::config::GetAppConfig().chickenMp.load());
+              info.GetReturnValue().Set(config::GetAppConfig().chickenMp.load());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::config::GetAppConfig().chickenMp.store(v8_convert::ToInt32(info.GetIsolate(), value));
+              config::GetAppConfig().chickenMp.store(v8_convert::ToInt32(info.GetIsolate(), value));
           })
         .Check();
 
@@ -473,10 +473,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "quitonhostile"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::config::GetAppConfig().quitOnHostile.load());
+              info.GetReturnValue().Set(config::GetAppConfig().quitOnHostile.load());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::config::GetAppConfig().quitOnHostile.store(value->BooleanValue(info.GetIsolate()));
+              config::GetAppConfig().quitOnHostile.store(value->BooleanValue(info.GetIsolate()));
           })
         .Check();
 
@@ -485,10 +485,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "blockKeys"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::config::GetAppConfig().blockKeys.load());
+              info.GetReturnValue().Set(config::GetAppConfig().blockKeys.load());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::config::GetAppConfig().blockKeys.store(value->BooleanValue(info.GetIsolate()));
+              config::GetAppConfig().blockKeys.store(value->BooleanValue(info.GetIsolate()));
           })
         .Check();
 
@@ -497,10 +497,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "blockMouse"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::config::GetAppConfig().blockMouse.load());
+              info.GetReturnValue().Set(config::GetAppConfig().blockMouse.load());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::config::GetAppConfig().blockMouse.store(value->BooleanValue(info.GetIsolate()));
+              config::GetAppConfig().blockMouse.store(value->BooleanValue(info.GetIsolate()));
           })
         .Check();
 
@@ -510,16 +510,16 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "nopickup"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              if (d2bs::game::GetGameState() != d2bs::game::GameState::InGame) {
+              if (game::GetGameState() != game::GameState::InGame) {
                   return;
               }
-              info.GetReturnValue().Set(d2bs::game::GetNoPickUp());
+              info.GetReturnValue().Set(game::GetNoPickUp());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              if (d2bs::game::GetGameState() != d2bs::game::GameState::InGame) {
+              if (game::GetGameState() != game::GameState::InGame) {
                   return;
               }
-              d2bs::game::SetNoPickUp(v8_convert::ToBool(info.GetIsolate(), value));
+              game::SetNoPickUp(v8_convert::ToBool(info.GetIsolate(), value));
           })
         .Check();
 
@@ -528,10 +528,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "quitonerror"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(d2bs::config::GetAppConfig().quitOnError.load());
+              info.GetReturnValue().Set(config::GetAppConfig().quitOnError.load());
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::config::GetAppConfig().quitOnError.store(value->BooleanValue(info.GetIsolate()));
+              config::GetAppConfig().quitOnError.store(value->BooleanValue(info.GetIsolate()));
           })
         .Check();
 
@@ -540,10 +540,10 @@ v8::Local<v8::Object> CreateMeObject(v8::Isolate* isolate, v8::Local<v8::Context
     me->SetNativeDataProperty(
           context, v8_convert::ToV8(isolate, "maxgametime"),
           +[](v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-              info.GetReturnValue().Set(static_cast<uint32_t>(d2bs::config::GetAppConfig().maxGameTime.load().count()));
+              info.GetReturnValue().Set(static_cast<uint32_t>(config::GetAppConfig().maxGameTime.load().count()));
           },
           +[](v8::Local<v8::Name>, v8::Local<v8::Value> value, const v8::PropertyCallbackInfo<void>& info) {
-              d2bs::config::GetAppConfig().maxGameTime.store(
+              config::GetAppConfig().maxGameTime.store(
                   std::chrono::milliseconds{v8_convert::ToUint32(info.GetIsolate(), value)});
           })
         .Check();

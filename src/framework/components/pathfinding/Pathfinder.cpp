@@ -4,7 +4,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstring>
 #include <queue>
 #include <ranges>
 #include <unordered_set>
@@ -27,14 +26,14 @@ int32_t DiagonalShortcut(Point a, Point b) {
 }
 
 int32_t EuclideanDist(Point a, Point b) {
-    double dx = static_cast<double>(a.x - b.x);
-    double dy = static_cast<double>(a.y - b.y);
+    double dx = a.x - b.x;
+    double dy = a.y - b.y;
     return static_cast<int32_t>(std::sqrt((dx * dx) + (dy * dy)) * 10);
 }
 
 int32_t SlopeFn(Point a, Point b) {
-    double dx = static_cast<double>(b.x - a.x);
-    double dy = static_cast<double>(b.y - a.y);
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
     double slope = dy / dx;
     // NaN (0/0) and Inf (n/0) map to INT32_MIN, matching the x86 cvttsd2si
     // behavior that the reference Slope() relies on, but without UB.
@@ -149,10 +148,10 @@ std::vector<Point> CollisionLookup::FindPortals(Point start, Point end) const {
 
 // --- Build collision grid from game level ---
 
-LevelGrid BuildLevelGrid(d2bs::game::Level level) {
+LevelGrid BuildLevelGrid(game::Level level) {
     LevelGrid grid(level.Bounds(), collision::AVOID);
     grid.levelId = level.Id();
-    grid.mapSeed = d2bs::game::GetMapSeed();
+    grid.mapSeed = game::GetMapSeed();
 
     for (auto room = level.GetFirstRoom(); room; room = room.GetNext()) {
         auto rb = room.Bounds();
@@ -162,7 +161,7 @@ LevelGrid BuildLevelGrid(d2bs::game::Level level) {
         if (roomW == 0 || roomH == 0 || collData.empty())
             continue;
 
-        uint32_t rows = std::min(roomH, static_cast<uint32_t>(collData.size()) / roomW);
+        uint32_t rows = std::min(roomH, collData.size() / roomW);
 
         // Rooms are always fully within their level grid (D2 level layout invariant:
         // every room's origin/size is contained by pLevel->dwPosX/Y/SizeX/Y), so the
@@ -370,7 +369,7 @@ constexpr std::array<Point, 8> DIRECTIONS = {{
 //   reclaimed without explicit lifecycle management.
 struct CachedArena {
     Position origin{};  // level bounding-rect origin of the cached arena
-    d2bs::utils::VirtualArray<WalkNode> data;
+    utils::VirtualArray<WalkNode> data;
 };
 
 thread_local CachedArena gArena;
@@ -386,7 +385,7 @@ struct LevelNodes {
     Rect rect;
     size_t index;
     WalkNode* nodes;                                    // points into gArena.data or ownedFallback
-    d2bs::utils::VirtualArray<WalkNode> ownedFallback;  // non-empty only for fallback case
+    utils::VirtualArray<WalkNode> ownedFallback;  // non-empty only for fallback case
 
     bool Contains(Position p) const { return rect.Contains(p); }
     int32_t ToIdx(Position p) const { return static_cast<int32_t>(CellIndex(rect, p)); }
@@ -473,7 +472,7 @@ std::vector<Position> WalkAStar(CollisionLookup& coll, Position start, Position 
         // on first Touch(). Miss evicts + reallocates.
         if (useArena && allLevels.empty()) {
             if (gArena.data.Empty() || gArena.origin != g.rect.origin || gArena.data.Size() != area) {
-                d2bs::utils::VirtualArray<WalkNode> arr(area);
+                utils::VirtualArray<WalkNode> arr(area);
                 if (arr.Empty())
                     return nullptr;
                 gArena = {.origin = g.rect.origin, .data = std::move(arr)};
@@ -484,7 +483,7 @@ std::vector<Position> WalkAStar(CollisionLookup& coll, Position start, Position 
 
         // Per-call fallback: transient VirtualArray owned by this LevelNodes
         // and freed when allLevels destructs at WalkAStar exit.
-        d2bs::utils::VirtualArray<WalkNode> arr(area);
+        utils::VirtualArray<WalkNode> arr(area);
         if (arr.Empty())
             return nullptr;
         WalkNode* raw = arr.Data();
@@ -941,11 +940,11 @@ thread_local std::optional<CollisionLookup> cachedLookup;
 }  // namespace
 
 std::vector<Position> FindPath(const PathRequest& request) {
-    const uint32_t currentSeed = d2bs::game::GetMapSeed();
+    const uint32_t currentSeed = game::GetMapSeed();
     const bool cacheValid = cachedLookup.has_value() && cachedLookup->primary.levelId == request.areaId &&
                             cachedLookup->primary.mapSeed == currentSeed;
     if (!cacheValid) {
-        auto levelOpt = d2bs::game::Level::Get(request.areaId);
+        auto levelOpt = game::Level::Get(request.areaId);
         if (!levelOpt)
             return {};
         cachedLookup.emplace();

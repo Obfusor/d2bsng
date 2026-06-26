@@ -5,7 +5,6 @@
 
 #include <mutex>
 #include <string_view>
-#include <utility>
 
 #include "utils/utils.h"
 
@@ -19,13 +18,13 @@ std::once_flag parsed;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 void Parse(LaunchOptions& out) {
-    const auto* cmdLine = ::GetCommandLineW();
+    const auto* cmdLine = GetCommandLineW();
     if (cmdLine == nullptr) {
         return;
     }
 
     int32_t argc = 0;
-    LPWSTR* argv = ::CommandLineToArgvW(cmdLine, &argc);
+    LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
     if (argv == nullptr) {
         return;
     }
@@ -44,7 +43,7 @@ void Parse(LaunchOptions& out) {
         if (token == L"-profile") {
             const auto value = nextValue();
             if (!value.empty()) {
-                out.profile = d2bs::utils::ToStr(std::wstring{value}, CP_UTF8);
+                out.profile = utils::ToStr(std::wstring{value}, CP_UTF8);
             }
         } else if (token == L"-multi") {
             out.multiInstance = true;
@@ -56,12 +55,12 @@ void Parse(LaunchOptions& out) {
         } else if (token == L"-d2c") {
             const auto value = nextValue();
             if (!value.empty()) {
-                out.classicCdKey = d2bs::utils::ToStr(std::wstring{value}, CP_ACP);
+                out.classicCdKey = utils::ToStr(std::wstring{value}, CP_ACP);
             }
         } else if (token == L"-d2x") {
             const auto value = nextValue();
             if (!value.empty()) {
-                out.lodCdKey = d2bs::utils::ToStr(std::wstring{value}, CP_ACP);
+                out.lodCdKey = utils::ToStr(std::wstring{value}, CP_ACP);
             }
         } else if (token == L"-ftj") {
             out.reduceFailToJoin = true;
@@ -70,12 +69,12 @@ void Parse(LaunchOptions& out) {
         } else if (token == L"-proxy") {
             const auto value = nextValue();
             if (!value.empty()) {
-                out.proxy = d2bs::utils::ToStr(std::wstring{value}, CP_UTF8);
+                out.proxy = utils::ToStr(std::wstring{value}, CP_UTF8);
             }
         }
     }
 
-    ::LocalFree(static_cast<HLOCAL>(static_cast<void*>(argv)));
+    LocalFree(static_cast<void*>(argv));
 }
 
 }  // namespace

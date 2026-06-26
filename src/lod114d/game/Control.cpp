@@ -23,7 +23,7 @@
 
 namespace d2bs::game {
 
-using d2bs::imports::extras::D2WinControlStrc;
+using imports::extras::D2WinControlStrc;
 
 namespace {
 
@@ -192,7 +192,7 @@ Control Control::GetNext() const {
     if (ctrl == nullptr) {
         return Control{};
     }
-    return Control::FromPtr(ctrl->pNext);
+    return FromPtr(ctrl->pNext);
 }
 
 void Control::Click(std::optional<Position> pos) const {
@@ -257,7 +257,7 @@ std::optional<Control> Control::GetFirst() {
     if (first == nullptr) {
         return std::nullopt;
     }
-    return Control::FromPtr(first);
+    return FromPtr(first);
 }
 
 }  // namespace d2bs::game

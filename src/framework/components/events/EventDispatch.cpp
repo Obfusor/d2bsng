@@ -56,11 +56,11 @@ void PlayerAssignEventDispatch(uint32_t unitId) {
     FireIfRunning(std::make_shared<PlayerAssignEvent>(unitId));
 }
 
-void MouseClickEventDispatch(d2bs::game::ClickButton button, d2bs::game::Position pos, d2bs::game::KeyState state) {
+void MouseClickEventDispatch(game::ClickButton button, game::Position pos, game::KeyState state) {
     FireIfRunning(std::make_shared<MouseClickEvent>(button, pos, state));
 }
 
-void MouseMoveEventDispatch(d2bs::game::Position pos) {
+void MouseMoveEventDispatch(game::Position pos) {
     if (pos.x < 1 || pos.y < 1)
         return;
     FireIfRunning(std::make_shared<MouseMoveEvent>(pos));
@@ -75,7 +75,7 @@ void GameActionEventDispatch(int32_t mode, uint32_t param1, uint32_t param2, con
     FireIfRunning(std::make_shared<GameActionEvent>(mode, param1, param2, name1, name2));
 }
 
-void CopyDataEventDispatch(d2bs::game::IpcMode mode, const std::string& payload) {
+void CopyDataEventDispatch(game::IpcMode mode, const std::string& payload) {
     FireIfRunning(std::make_shared<CopyDataEvent>(mode, payload));
 }
 
@@ -83,18 +83,18 @@ void ScriptBroadcastEventDispatch(const v8::FunctionCallbackInfo<v8::Value>& arg
     FireIfRunning(std::make_shared<BroadcastEvent>(args));
 }
 
-bool KeyDownUpEventDispatch(uint32_t key, d2bs::game::KeyState state) {
+bool KeyDownUpEventDispatch(uint32_t key, game::KeyState state) {
     // Framework-owned hotkeys run before JS dispatch and swallow the key
     // so scripts and the game both see nothing. Today: Home -> console
     // toggle. Mirrors reference/d2bs/D2Handlers.cpp:226-234, except the
     // chat/esc-menu gate isn't applicable - our console is a separate
     // window, not an in-game overlay.
-    if (state == d2bs::game::KeyState::Down && key == VK_HOME) {
-        d2bs::game::console::Toggle();
+    if (state == game::KeyState::Down && key == VK_HOME) {
+        game::console::Toggle();
         return /* blocked */ true;
     }
 
-    if (state == d2bs::game::KeyState::Up) {
+    if (state == game::KeyState::Up) {
         FireIfRunning(std::make_shared<KeyUpEvent>(key));
         auto blocker = std::make_shared<KeyUpBlockerEvent>(key);
         FireIfRunning(blocker);

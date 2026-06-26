@@ -3,8 +3,6 @@
 #include <Windows.h>
 #include <algorithm>
 #include <array>
-#include <cctype>
-#include <cstdlib>
 #include <filesystem>
 #include <utility>
 #include <vector>
@@ -113,7 +111,7 @@ std::optional<ProfileData> IniConfigStore::LoadProfile(const std::string& name) 
     // so we don't expose the undefined enum value to the state machine.
     auto rawDiff = ReadInt(name, "spdifficulty", 0);
     profile.difficulty =
-        (rawDiff >= 0 && rawDiff <= 3) ? static_cast<d2bs::game::Difficulty>(rawDiff) : d2bs::game::Difficulty::Normal;
+        (rawDiff >= 0 && rawDiff <= 3) ? static_cast<game::Difficulty>(rawDiff) : game::Difficulty::Normal;
 
     // maxLoginTime / maxCharTime are read from [settings], matching reference behavior.
     // INI stores seconds; convert to chrono::milliseconds at the boundary.
@@ -163,7 +161,7 @@ bool IniConfigStore::ProfileExists(const std::string& name) {
     // Each name is null-terminated, list ends with double null.
     std::array<wchar_t, 65535> sections{};
     auto count = GetPrivateProfileStringW(nullptr, nullptr, nullptr, sections.data(),
-                                          static_cast<DWORD>(sections.size()), widePath.c_str());
+                                          sections.size(), widePath.c_str());
     if (count == 0) {
         return false;
     }
@@ -184,7 +182,7 @@ std::vector<std::string> IniConfigStore::ListProfiles() {
 
     std::array<wchar_t, 65535> sections{};
     auto count = GetPrivateProfileStringW(nullptr, nullptr, nullptr, sections.data(),
-                                          static_cast<DWORD>(sections.size()), widePath.c_str());
+                                          sections.size(), widePath.c_str());
 
     std::vector<std::string> result;
     size_t offset = 0;
@@ -214,7 +212,7 @@ std::string IniConfigStore::ReadString(const std::string& section, const std::st
 
     std::array<wchar_t, 1024> buffer{};
     GetPrivateProfileStringW(wideSection.c_str(), wideKey.c_str(), wideDefault.c_str(), buffer.data(),
-                             static_cast<DWORD>(buffer.size()), widePath.c_str());
+                             buffer.size(), widePath.c_str());
     return utils::ToStr(buffer.data());
 }
 
@@ -222,7 +220,7 @@ void IniConfigStore::WriteKeys(const std::string& section,
                                const std::vector<std::pair<std::string, std::string>>& keyValues) const {
     // Serialize the whole read-modify-write across processes so concurrent
     // writers (other d2bsng instances, D2BotNG) can't lose each other's updates.
-    const d2bs::utils::NamedMutexLock lock(INI_LOCK_NAME);
+    const utils::NamedMutexLock lock(INI_LOCK_NAME);
     // Acquired() may be false on timeout; we still proceed - the commit below is
     // an atomic replace, so the worst case is a lost update, never a torn file.
 

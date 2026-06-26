@@ -18,7 +18,7 @@
 
 namespace d2bs::api::classes {
 
-using d2bs::api::globals::FileMode;
+using globals::FileMode;
 
 namespace file_detail {
 FILE* FileOpenRelScript(v8::Isolate* isolate, const std::string& relativePath, const wchar_t* mode);

@@ -26,15 +26,15 @@ class LogPanel : public Panel {
     // Append a message; timestamp captured here so display time reflects
     // emission order, not render time. Records msg.name in the script
     // visibility map so the filter UI sees the script. Render-thread only.
-    void Append(d2bs::game::console::Message msg);
+    void Append(game::console::Message msg);
 
    private:
     struct Entry {
-        d2bs::game::console::Message msg;
+        game::console::Message msg;
         std::chrono::system_clock::time_point ts;
     };
 
-    [[nodiscard]] bool SourceVisible(d2bs::game::console::MessageSource source) const;
+    [[nodiscard]] bool SourceVisible(game::console::MessageSource source) const;
     [[nodiscard]] bool MatchesFilter(const Entry& entry) const;
     void DrawFilterBar();
     void DrawScrollback();
@@ -45,14 +45,14 @@ class LogPanel : public Panel {
     // One row per source kind LogPanel handles (Print + Log;
     // EvaluateResult/ConsolePrint go to ConsolePanel instead).
     struct SourceFilter {
-        d2bs::game::console::MessageSource source;
+        game::console::MessageSource source;
         bool visible = true;
     };
     std::array<SourceFilter, 2> sourceFilters_{
-        SourceFilter{.source = d2bs::game::console::MessageSource::Print, .visible = true},
-        SourceFilter{.source = d2bs::game::console::MessageSource::Log, .visible = true},
+        SourceFilter{.source = game::console::MessageSource::Print, .visible = true},
+        SourceFilter{.source = game::console::MessageSource::Log, .visible = true},
     };
-    d2bs::game::console::MessageLevel minLevel_ = d2bs::game::console::MessageLevel::Trace;
+    game::console::MessageLevel minLevel_ = game::console::MessageLevel::Trace;
 
     // Auto-populated as messages arrive. Stable iteration order via std::map.
     // Default value on insert is `true` (visible).

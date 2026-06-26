@@ -25,8 +25,8 @@ TEST_CASE("Teleport A* jumps are within radius") {
 
     // Each jump should be within teleport range (radius=20, some tolerance for walk fallback)
     for (size_t i = 1; i < path.size(); i++) {
-        double dx = static_cast<double>(static_cast<int32_t>(path[i].x) - static_cast<int32_t>(path[i - 1].x));
-        double dy = static_cast<double>(static_cast<int32_t>(path[i].y) - static_cast<int32_t>(path[i - 1].y));
+        double dx = static_cast<int32_t>(path[i].x) - static_cast<int32_t>(path[i - 1].x);
+        double dy = static_cast<int32_t>(path[i].y) - static_cast<int32_t>(path[i - 1].y);
         double dist = std::sqrt((dx * dx) + (dy * dy));
         CHECK(dist <= 21.0);
     }
@@ -51,8 +51,8 @@ TEST_CASE("Teleport A* produces coarse jumps, not tile-by-tile") {
     // Verify average jump distance is a significant fraction of the radius
     double totalJumpDist = 0;
     for (size_t i = 1; i < path.size(); i++) {
-        double dx = static_cast<double>(static_cast<int32_t>(path[i].x) - static_cast<int32_t>(path[i - 1].x));
-        double dy = static_cast<double>(static_cast<int32_t>(path[i].y) - static_cast<int32_t>(path[i - 1].y));
+        double dx = static_cast<int32_t>(path[i].x) - static_cast<int32_t>(path[i - 1].x);
+        double dy = static_cast<int32_t>(path[i].y) - static_cast<int32_t>(path[i - 1].y);
         totalJumpDist += std::sqrt((dx * dx) + (dy * dy));
     }
     double avgJump = totalJumpDist / static_cast<double>(path.size() - 1);

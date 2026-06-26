@@ -1,9 +1,9 @@
 #pragma once
 
+// ReSharper disable once CppUnusedIncludeDirective
 #include "D2MOOConfig.h"
 #include "ImportTypes.h"
 
-#include <cstddef>
 #include <cstdint>
 
 // All offsets below are Game.exe-relative for 1.14d. Calling conventions

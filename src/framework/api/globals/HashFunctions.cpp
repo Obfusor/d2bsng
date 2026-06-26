@@ -19,7 +19,7 @@ void HashStringCallback(const v8::FunctionCallbackInfo<v8::Value>& args, const c
         return;
     }
     std::string input = v8_convert::ToString(isolate, args[0]);
-    auto result = d2bs::utils::HashString(algorithm, input);
+    auto result = utils::HashString(algorithm, input);
     if (!result.empty()) {
         args.GetReturnValue().Set(v8_convert::ToV8(isolate, result));
     }
@@ -31,12 +31,12 @@ void HashFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args, const cha
         return;
     }
     std::string file = v8_convert::ToString(isolate, args[0]);
-    auto fullPath = d2bs::config::GetPathRelScript(file);
+    auto fullPath = config::GetPathRelScript(file);
     if (fullPath.empty()) {
         v8_error::ThrowError(isolate, "Invalid file path!");
         return;
     }
-    auto result = d2bs::utils::HashFile(algorithm, fullPath);
+    auto result = utils::HashFile(algorithm, fullPath);
     if (!result.empty()) {
         args.GetReturnValue().Set(v8_convert::ToV8(isolate, result));
     }

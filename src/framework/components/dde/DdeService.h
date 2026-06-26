@@ -91,7 +91,7 @@ class DdeService {
     // Dedicated DDE logger. spdlog's registry caches by name so repeated GetLogger
     // calls return the same sink-set; this NSDMI initialises once at singleton
     // construction.
-    std::shared_ptr<spdlog::logger> logger_ = d2bs::utils::GetLogger("dde");
+    std::shared_ptr<spdlog::logger> logger_ = utils::GetLogger("dde");
 };
 
 }  // namespace d2bs::dde

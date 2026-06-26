@@ -3,10 +3,8 @@
 #include <imgui.h>
 
 #include <algorithm>
-#include <cstring>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "components/console/Theme.h"
@@ -17,10 +15,10 @@ namespace d2bs::framework::console {
 
 namespace {
 
-using d2bs::game::console::Message;
-using d2bs::game::console::MessageLevel;
-using d2bs::game::console::SplitByColor;
-using d2bs::game::console::StripColor;
+using game::console::Message;
+using game::console::MessageLevel;
+using game::console::SplitByColor;
+using game::console::StripColor;
 
 constexpr ImVec4 PROMPT_COLOR{0.55F, 0.55F, 0.55F, 1.00F};
 constexpr ImVec4 INPUT_COLOR{0.55F, 0.75F, 1.00F, 1.00F};
@@ -110,7 +108,7 @@ void ConsolePanel::SubmitInput() {
     historyCursor_ = -1;
     draft_.clear();
 
-    d2bs::framework::script::RunCommand(std::string{input});
+    script::RunCommand(std::string{input});
 
     inputBuf_.fill('\0');
     refocusInput_ = true;

@@ -12,7 +12,7 @@ namespace d2bs::api::classes {
 
 // Party class - represents a player in the party roster
 // Used to track other players in the game
-class JSParty : public V8ClassBase<JSParty, d2bs::game::Party> {
+class JSParty : public V8ClassBase<JSParty, game::Party> {
    public:
     static constexpr std::string_view ClassName = "Party";
 
@@ -141,7 +141,7 @@ class JSParty : public V8ClassBase<JSParty, d2bs::game::Party> {
         /// or there is no next member.
         Method(
             isolate, proto, "getNext", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-                if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+                if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                     v8_error::WarnAndReturnFalse(args, "Game not ready");
                     return;
                 }

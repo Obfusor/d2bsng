@@ -20,7 +20,7 @@ namespace {
 constexpr ImGuiTableFlags STACK_TABLE_FLAGS =
     ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit;
 
-void DrawStackTable(const std::vector<d2bs::StackFrame>& frames) {
+void DrawStackTable(const std::vector<StackFrame>& frames) {
     if (frames.empty()) {
         ImGui::TextDisabled("(no JS frames on stack - script is between events)");
         return;
@@ -72,9 +72,9 @@ void DrawStackTable(const std::vector<d2bs::StackFrame>& frames) {
 }  // namespace
 
 void StacktracesPanel::Draw() {
-    const auto scripts = d2bs::ScriptEngine::Instance().GetAllScripts();
+    const auto scripts = ScriptEngine::Instance().GetAllScripts();
 
-    std::shared_ptr<d2bs::Script> selected;
+    std::shared_ptr<Script> selected;
     if (selectedTid_ != 0) {
         const auto it = std::ranges::find_if(
             scripts, [tid = selectedTid_](const auto& s) { return s->GetNativeThreadId() == tid; });
@@ -100,7 +100,7 @@ void StacktracesPanel::Draw() {
     if (ImGui::BeginCombo("##script", previewLabel.c_str())) {
         if (ImGui::Selectable("(none)", selectedTid_ == 0)) {
             if (selected != nullptr) {
-                selected->SetStackCaptureMode(d2bs::StackCaptureMode::Off);
+                selected->SetStackCaptureMode(StackCaptureMode::Off);
             }
             selectedTid_ = 0;
             selected.reset();
@@ -114,7 +114,7 @@ void StacktracesPanel::Draw() {
             const std::string label = fmt::format("{} [{}]##{}", s->GetName(), magic_enum::enum_name(s->GetState()), i);
             if (ImGui::Selectable(label.c_str(), tid == selectedTid_ && selected.get() == s.get())) {
                 if (selected != nullptr && selected.get() != s.get()) {
-                    selected->SetStackCaptureMode(d2bs::StackCaptureMode::Off);
+                    selected->SetStackCaptureMode(StackCaptureMode::Off);
                 }
                 selectedTid_ = tid;
                 selected = s;
@@ -127,8 +127,8 @@ void StacktracesPanel::Draw() {
     if (ImGui::Checkbox("Capture every native call", &captureOnEveryCall_)) {
         // Toggling only touches the selected script; unselected ones are already Off.
         if (selected != nullptr) {
-            selected->SetStackCaptureMode(captureOnEveryCall_ ? d2bs::StackCaptureMode::OnEveryCall
-                                                              : d2bs::StackCaptureMode::OnYield);
+            selected->SetStackCaptureMode(captureOnEveryCall_ ? StackCaptureMode::OnEveryCall
+                                                              : StackCaptureMode::OnYield);
         }
     }
     if (ImGui::IsItemHovered()) {
@@ -146,8 +146,8 @@ void StacktracesPanel::Draw() {
 
     // Re-assert the selected script's capture tier each frame (handles the
     // checkbox toggle and reselection).
-    selected->SetStackCaptureMode(captureOnEveryCall_ ? d2bs::StackCaptureMode::OnEveryCall
-                                                      : d2bs::StackCaptureMode::OnYield);
+    selected->SetStackCaptureMode(captureOnEveryCall_ ? StackCaptureMode::OnEveryCall
+                                                      : StackCaptureMode::OnYield);
 
     if (const auto snapshot = selected->GetLastStackTrace(); snapshot != nullptr) {
         DrawStackTable(snapshot->frames);

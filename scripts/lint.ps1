@@ -69,6 +69,32 @@ if ($needRegen) {
     Write-Host "Compile database ready." -ForegroundColor Green
 }
 
+# --- Treat dependency includes as system headers ---
+# clang-tidy analyzes every header reachable through /I and resolves the nearest
+# .clang-tidy for each. Third-party trees under dependencies/ (D2MOO, V8) ship
+# their own .clang-tidy - D2MOO's still sets the long-removed AnalyzeTemporaryDtors
+# key, which clang-tidy reports as an error. The vcxproj already marks these
+# ExternalIncludeDirectories, but the generated compile DB flattens every include
+# to /I, losing that intent. Rewrite dependency includes to /imsvc (system) so
+# clang-tidy skips those headers entirely: no analysis, no per-directory config
+# read. Idempotent (re-runs find no /I dependency paths left to convert), so it
+# only rewrites after MSBuild regenerates a DB. Assumes dependency paths contain
+# no spaces (true for this repo), so they are unquoted single tokens in the DB.
+function Convert-DepsToSystemIncludes($dbDir) {
+    $cc = Join-Path $dbDir 'compile_commands.json'
+    if (-not (Test-Path $cc)) { return }
+    $json = Get-Content $cc -Raw | ConvertFrom-Json
+    $changed = $false
+    foreach ($entry in $json) {
+        $new = $entry.command -replace '/I([A-Za-z]:\\[^\s"]*\\dependencies\\[^\s"]*)', '/imsvc $1'
+        if ($new -ne $entry.command) { $entry.command = $new; $changed = $true }
+    }
+    if ($changed) {
+        $json | ConvertTo-Json -Depth 100 -Compress | Set-Content $cc -Encoding UTF8
+    }
+}
+foreach ($db in @($dbD2bs, $dbFramework, $dbUtils, $dbTests)) { Convert-DepsToSystemIncludes $db }
+
 # --- Compute global generation hash ---
 # Changes to any header or to .clang-tidy invalidate all cached results.
 function Get-GlobalGeneration {

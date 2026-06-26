@@ -43,7 +43,7 @@ std::string ComputeHash(const wchar_t *algorithmId, const uint8_t *data, size_t 
     }
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast) - BCrypt API takes non-const PUCHAR but doesn't modify data
-    if (BCryptHashData(hHash, const_cast<PUCHAR>(data), static_cast<ULONG>(dataLen), 0) != 0) {
+    if (BCryptHashData(hHash, const_cast<PUCHAR>(data), dataLen, 0) != 0) {
         BCryptDestroyHash(hHash);
         BCryptCloseAlgorithmProvider(hAlgorithm, 0);
         return {};

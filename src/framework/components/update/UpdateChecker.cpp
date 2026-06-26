@@ -3,12 +3,10 @@
 #include <algorithm>
 #include <charconv>
 #include <chrono>
-#include <compare>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 
 #include <spdlog/spdlog.h>
@@ -122,7 +120,7 @@ UpdateChecker& UpdateChecker::Instance() {
 }
 
 UpdateChecker::UpdateChecker() {
-    logger_ = d2bs::utils::GetLogger("update");
+    logger_ = utils::GetLogger("update");
 }
 
 UpdateChecker::~UpdateChecker() {
@@ -167,7 +165,7 @@ std::string UpdateChecker::Message() const {
 }
 
 void UpdateChecker::Run(const std::stop_token& stopToken) {
-    d2bs::thread_utils::SetThreadDescription("d2bs update checker");
+    thread_utils::SetThreadDescription("d2bs update checker");
 
     std::unique_lock lock(mutex_);
     // Interruptible settle delay before the first check. wait_for returns the

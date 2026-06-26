@@ -1,7 +1,6 @@
 #include "JSSocket.h"
 
 #include <array>
-#include <cstdint>
 
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
@@ -19,7 +18,7 @@ namespace d2bs::api::classes {
 
 SocketData::~SocketData() {
     if (handle != INVALID_SOCKET) {
-        closesocket(static_cast<SOCKET>(handle));
+        closesocket(handle);
     }
     if (isWsaInitialized) {
         WSACleanup();
@@ -97,7 +96,7 @@ void JSSocket::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTem
             }
 
             std::array<char, 10000> buffer{};
-            int32_t bytesRead = recv(data->handle, buffer.data(), static_cast<int32_t>(buffer.size()), 0);
+            int32_t bytesRead = recv(data->handle, buffer.data(), buffer.size(), 0);
             if (bytesRead == -1) {
                 v8_error::ThrowError(isolate, "Failed to read from socket");
                 return;
@@ -221,7 +220,7 @@ void JSSocket::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTem
 
             // Connect. Script sockets are not the game's Battle.net traffic, so keep
             // them off the -proxy SOCKS5 tunnel (the detour passes bypassed connects through).
-            d2bs::proxy::BypassScope noProxy;
+            proxy::BypassScope noProxy;
             if (connect(sock, result->ai_addr, static_cast<int>(result->ai_addrlen)) != 0) {
                 closesocket(sock);
                 freeaddrinfo(result);

@@ -1,9 +1,6 @@
 #include "GameFunctions.h"
 
 #include <array>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
 #include <memory>
 #include <optional>
 #include <span>
@@ -21,7 +18,6 @@
 #include "api/core/V8Error.h"
 #include "api/core/V8Extract.h"
 #include "api/core/V8Function.h"
-#include "api/globals/TxtLookup.h"
 #include "api/globals/TxtTableAccess.h"
 #include "components/config/AppConfig.h"
 #include "components/pathfinding/Pathfinder.h"
@@ -29,6 +25,7 @@
 #include "game/Bridge.h"
 #include "game/Constants.h"
 #include "game/Control.h"
+// ReSharper disable once CppUnusedIncludeDirective - inline Find*/Get* defs (declared in the handle headers)
 #include "game/Finders.h"
 #include "game/GameHelpers.h"
 #include "game/Level.h"
@@ -46,20 +43,20 @@ namespace {
 
 // Emit a JS array of {x, y} objects from a span of pathfinding positions.
 v8::Local<v8::Array> PositionsToV8(v8::Isolate* isolate, v8::Local<v8::Context> context,
-                                   std::span<const d2bs::pathfinding::Position> points) {
+                                   std::span<const pathfinding::Position> points) {
     auto arr = v8::Array::New(isolate, static_cast<int32_t>(points.size()));
     for (size_t i = 0; i < points.size(); ++i) {
         v8::HandleScope innerScope(isolate);
-        arr->Set(context, static_cast<uint32_t>(i), v8_convert::ToV8(isolate, points[i])).Check();
+        arr->Set(context, i, v8_convert::ToV8(isolate, points[i])).Check();
     }
     return arr;
 }
 
 // Euclidean distance between two points (used by getDistance in all its arg shapes).
 // Promoted out of the inline lambda so the algorithm lives in one place.
-double Distance(d2bs::game::Point a, d2bs::game::Point b) {
-    double dx = static_cast<double>(b.x - a.x);
-    double dy = static_cast<double>(b.y - a.y);
+double Distance(game::Point a, game::Point b) {
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
     return std::abs(std::sqrt((dx * dx) + (dy * dy)));
 }
 
@@ -87,7 +84,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -102,26 +99,26 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // (matches reference).
             if (args[0]->IsNumber()) {
                 uint32_t type = v8_convert::ToUint32(isolate, args[0]);
-                if (type == d2bs::game::ITEM_LOCATION_MODE_OFFSET) {
-                    auto unit = d2bs::game::Unit::CursorItem();
+                if (type == game::ITEM_LOCATION_MODE_OFFSET) {
+                    auto unit = game::Unit::CursorItem();
                     if (!unit) {
                         return;
                     }
                     args.GetReturnValue().Set(
-                        JSUnit::CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(*unit)));
+                        JSUnit::CreateInstance(isolate, context, std::make_unique<game::Unit>(*unit)));
                     return;
                 }
-                if (type == d2bs::game::ITEM_LOCATION_MODE_OFFSET + 1) {
-                    auto unit = d2bs::game::Unit::Selected();
+                if (type == game::ITEM_LOCATION_MODE_OFFSET + 1) {
+                    auto unit = game::Unit::Selected();
                     // Reference lines 605-608: fall back to SelectedInventoryItem if no selected unit
                     if (!unit) {
-                        unit = d2bs::game::Unit::SelectedInventoryItem();
+                        unit = game::Unit::SelectedInventoryItem();
                     }
                     if (!unit) {
                         return;
                     }
                     args.GetReturnValue().Set(
-                        JSUnit::CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(*unit)));
+                        JSUnit::CreateInstance(isolate, context, std::make_unique<game::Unit>(*unit)));
                     return;
                 }
             }
@@ -130,12 +127,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // Parsed linearly in arg order. IsUint32 (not IsNumber): scripts pass -1 to
             // mean "no filter" - IsUint32 rejects negative values, leaving optionals
             // nullopt. IsNumber would accept -1 and store 0xFFFFFFFF as engaged.
-            d2bs::game::UnitCursorState cursor;
+            game::UnitCursorState cursor;
             if (args[0]->IsUint32()) {
                 auto rawType = v8_convert::ToUint32(isolate, args[0]);
                 // Valid unit types are 0-5. Values outside this range trigger "search all types."
-                if (rawType <= static_cast<uint32_t>(d2bs::game::UnitType::Tile)) {
-                    cursor.type = static_cast<d2bs::game::UnitType>(rawType);
+                if (rawType <= static_cast<uint32_t>(game::UnitType::Tile)) {
+                    cursor.type = static_cast<game::UnitType>(rawType);
                 }
             }
             if (args.Length() >= 2) {
@@ -155,7 +152,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             // Reference calls GetUnit(szName, nClassId, nType, nMode, nUnitId) which searches
             // by all-optional cursor criteria; FindFirst stamps the cursor onto the result.
-            auto unit = d2bs::game::Unit::FindFirst(cursor);
+            auto unit = game::Unit::FindFirst(cursor);
             if (!unit) {
                 return;
             }
@@ -163,7 +160,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // Reference line 624: getUnit always uses PRIVATE_UNIT
             // Reference line 625: store search params, not live unit values (FindFirst already stamps).
             args.GetReturnValue().Set(
-                JSUnit::CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(*unit)));
+                JSUnit::CreateInstance(isolate, context, std::make_unique<game::Unit>(*unit)));
         });
 
     /// @description Compute an A* path between two world coordinates on a level.
@@ -194,7 +191,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // Delegates to d2bs::pathfinding::FindPath after parsing and validating args.
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -205,8 +202,8 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             uint32_t area = v8_convert::ToUint32(isolate, args[0]);
-            auto src = v8_extract::Position(args, 1).value_or(d2bs::game::Position::Zero);
-            auto dst = v8_extract::Position(args, 3).value_or(d2bs::game::Position::Zero);
+            auto src = v8_extract::Position(args, 1).value_or(game::Position::Zero);
+            auto dst = v8_extract::Position(args, 3).value_or(game::Position::Zero);
             uint32_t reductionType = 0;
             uint32_t radius = 20;
             if (args.Length() > 5) {
@@ -221,12 +218,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            if (reductionType > static_cast<uint32_t>(d2bs::pathfinding::ReductionType::JSCallback)) {
+            if (reductionType > static_cast<uint32_t>(pathfinding::ReductionType::JSCallback)) {
                 v8_error::ThrowRangeError(isolate, "reductionType must be 0-3");
                 return;
             }
 
-            if (reductionType == static_cast<uint32_t>(d2bs::pathfinding::ReductionType::JSCallback) &&
+            if (reductionType == static_cast<uint32_t>(pathfinding::ReductionType::JSCallback) &&
                 (args.Length() < 10 || !args[7]->IsFunction() || !args[8]->IsFunction() || !args[9]->IsFunction())) {
                 v8_error::ThrowError(isolate, "Invalid function values for reduction type");
                 return;
@@ -234,22 +231,22 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             auto context = isolate->GetCurrentContext();
 
-            d2bs::pathfinding::PathRequest request;
+            pathfinding::PathRequest request;
             request.areaId = area;
             request.start = src;
             request.end = dst;
-            request.reduction = static_cast<d2bs::pathfinding::ReductionType>(reductionType);
+            request.reduction = static_cast<pathfinding::ReductionType>(reductionType);
             request.radius = static_cast<int32_t>(radius);
-            if (auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate)) {
+            if (auto* script = ScriptEngine::Instance().GetScript(isolate)) {
                 request.cancelToken = script->GetStopToken();
             }
 
-            if (reductionType == static_cast<uint32_t>(d2bs::pathfinding::ReductionType::JSCallback)) {
+            if (reductionType == static_cast<uint32_t>(pathfinding::ReductionType::JSCallback)) {
                 auto rejectFunc = args[7].As<v8::Function>();
                 auto reduceFunc = args[8].As<v8::Function>();
                 auto mutateFunc = args[9].As<v8::Function>();
 
-                request.jsReject = [isolate, context, rejectFunc](d2bs::pathfinding::Position p) -> bool {
+                request.jsReject = [isolate, context, rejectFunc](pathfinding::Position p) -> bool {
                     v8::HandleScope scope(isolate);
                     v8::TryCatch tryCatch(isolate);
                     std::array<v8::Local<v8::Value>, 2> argv = {v8_convert::ToV8(isolate, p.x),
@@ -260,8 +257,8 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                     return result.ToLocalChecked()->BooleanValue(isolate);
                 };
 
-                request.jsReduce = [isolate, context, reduceFunc](const std::vector<d2bs::pathfinding::Position>& path)
-                    -> std::vector<d2bs::pathfinding::Position> {
+                request.jsReduce = [isolate, context, reduceFunc](const std::vector<pathfinding::Position>& path)
+                    -> std::vector<pathfinding::Position> {
                     v8::HandleScope scope(isolate);
                     v8::TryCatch tryCatch(isolate);
 
@@ -274,7 +271,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                     }
 
                     auto resultArr = callResult.ToLocalChecked().As<v8::Array>();
-                    std::vector<d2bs::pathfinding::Position> reduced;
+                    std::vector<pathfinding::Position> reduced;
                     reduced.reserve(resultArr->Length());
                     for (uint32_t i = 0; i < resultArr->Length(); i++) {
                         auto elem = resultArr->Get(context, i).ToLocalChecked();
@@ -285,7 +282,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 };
 
                 request.jsMutate = [isolate, context,
-                                    mutateFunc](d2bs::pathfinding::Position p) -> d2bs::pathfinding::Position {
+                                    mutateFunc](pathfinding::Position p) -> pathfinding::Position {
                     v8::HandleScope scope(isolate);
                     v8::TryCatch tryCatch(isolate);
                     std::array<v8::Local<v8::Value>, 2> argv = {v8_convert::ToV8(isolate, p.x),
@@ -319,7 +316,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "getCollision", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -332,9 +329,9 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             uint32_t levelId = v8_convert::ToUint32(isolate, args[0]);
             auto pos = v8_extract::Position(args, 1).value();  // strict IsUint32 above guarantees this
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
 
-            auto level = d2bs::game::Level::Get(levelId);
+            auto level = game::Level::Get(levelId);
             if (!level) {
                 v8_error::ThrowError(isolate, "Level not loaded");
                 return;
@@ -359,12 +356,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     /// @returns {number} - Merc HP as a percent (0-100); undefined if there is no player or merc.
     v8_function::Register(
         isolate, global, "getMercHP", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
             // Reference: global version always uses player unit
-            auto player = d2bs::game::Unit::Player();
+            auto player = game::Unit::Player();
             if (!player)
                 return;
             if (player.Mode() == 12) {
@@ -393,7 +390,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             // type 1 = shop mode (check for shop-specific cursor), 0 = regular cursor
             bool isShop = (type == 1);
-            args.GetReturnValue().Set(static_cast<int32_t>(d2bs::game::GetCursorType(isShop)));
+            args.GetReturnValue().Set(static_cast<int32_t>(game::GetCursorType(isShop)));
         });
 
     /// @description Look up a skill id by its localized name.
@@ -409,7 +406,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             std::string name = v8_convert::ToString(isolate, args[0]);
-            auto skillId = d2bs::game::GetSkillByName(name);
+            auto skillId = game::GetSkillByName(name);
             if (!skillId) {
                 return;
             }
@@ -432,7 +429,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             int32_t skillId = v8_convert::ToInt32(isolate, args[0]);
 
             // Chain: skills table -> skilldesc row -> locale string ID -> localized name
-            static_assert(std::variant_size_v<d2bs::game::TxtValue> == 3,
+            static_assert(std::variant_size_v<game::TxtValue> == 3,
                           "TxtValue alternatives changed - review the get_if<int64_t> assumption below");
             auto descCell = game::GetTxtValue("skills", skillId, "skilldesc");
             if (auto* descRow = std::get_if<int64_t>(&descCell); descRow != nullptr && *descRow > 0) {
@@ -463,7 +460,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             uint16_t localeId = static_cast<uint16_t>(v8_convert::ToUint32(isolate, args[0]));
-            std::string text = d2bs::game::GetLocaleString(localeId);
+            std::string text = game::GetLocaleString(localeId);
             args.GetReturnValue().Set(v8_convert::ToV8(isolate, text));
         });
 
@@ -496,7 +493,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 asObject = args[2]->BooleanValue(isolate);
             }
 
-            auto size = d2bs::game::GetTextSize(text, font);
+            auto size = game::GetTextSize(text, font);
 
             if (asObject) {
                 auto obj = v8::Object::New(isolate);
@@ -527,13 +524,13 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
             uint32_t flag = v8_convert::ToUint32(isolate, args[0]);
-            args.GetReturnValue().Set(d2bs::game::GetUIFlag(flag) != 0);
+            args.GetReturnValue().Set(game::GetUIFlag(flag) != 0);
         });
 
     /// @description Query trade-related info by mode.
@@ -549,7 +546,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -559,15 +556,15 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto mode = static_cast<d2bs::game::TradeInfoMode>(v8_convert::ToInt32(isolate, args[0]));
+            auto mode = static_cast<game::TradeInfoMode>(v8_convert::ToInt32(isolate, args[0]));
             switch (mode) {
-                case d2bs::game::TradeInfoMode::RecentTradeId:
+                case game::TradeInfoMode::RecentTradeId:
                     // Reference: INT_TO_JSVAL(*p_D2CLIENT_RecentTradeId)
-                    args.GetReturnValue().Set(d2bs::game::GetRecentTradeId());
+                    args.GetReturnValue().Set(game::GetRecentTradeId());
                     break;
-                case d2bs::game::TradeInfoMode::RecentTradeName: {
+                case game::TradeInfoMode::RecentTradeName: {
                     // Reference: returns name string or null
-                    auto info = d2bs::game::GetTradeInfo(d2bs::game::TradeInfoMode::RecentTradeName);
+                    auto info = d2bs::game::GetTradeInfo(game::TradeInfoMode::RecentTradeName);
                     if (info) {
                         args.GetReturnValue().Set(v8_convert::ToV8(isolate, *info));
                     } else {
@@ -575,9 +572,9 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                     }
                     break;
                 }
-                case d2bs::game::TradeInfoMode::RecentTradeId2:
+                case game::TradeInfoMode::RecentTradeId2:
                     // Reference: INT_TO_JSVAL(*p_D2CLIENT_RecentTradeId)
-                    args.GetReturnValue().Set(d2bs::game::GetRecentTradeId());
+                    args.GetReturnValue().Set(game::GetRecentTradeId());
                     break;
                 default:
                     break;
@@ -597,7 +594,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -608,7 +605,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             if (waypointId > MAX_WAYPOINT_ID) {
                 waypointId = 0;
             }
-            args.GetReturnValue().Set(d2bs::game::HasWaypoint(waypointId) != 0);
+            args.GetReturnValue().Set(game::HasWaypoint(waypointId) != 0);
         });
 
     /// @description Get a Room object by level, by coordinates, or for the player's current level.
@@ -626,18 +623,18 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::ThrowError(isolate, "Game not ready");
                 return;
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
-            d2bs::game::Room room;
+            auto lock = game::Bridge::Lock();
+            game::Room room;
 
             if (args.Length() == 0) {
                 // No args: return the level's first room2 (pRoom2First), not the player's current room2.
                 // Reference: D2CLIENT_GetPlayerUnit()->pPath->pRoom1->pRoom2->pLevel->pRoom2First
-                auto player = d2bs::game::Unit::Player();
+                auto player = game::Unit::Player();
                 if (!player) {
                     return;
                 }
@@ -655,13 +652,13 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 uint32_t levelId = v8_convert::ToUint32(isolate, args[0]);
                 if (levelId == 0) {
                     // Reference: levelId==0 returns player's current room
-                    auto player = d2bs::game::Unit::Player();
+                    auto player = game::Unit::Player();
                     if (!player) {
                         return;
                     }
                     room = player.GetRoom();
                 } else {
-                    auto level = d2bs::game::Level::Get(levelId);
+                    auto level = game::Level::Get(levelId);
                     if (!level) {
                         return;
                     }
@@ -669,21 +666,21 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 }
             } else if (args.Length() >= 2) {
                 // getRoom(x, y) or getRoom(levelId, x, y): find room at coordinates
-                auto pos = d2bs::game::Position::Zero;
-                std::optional<d2bs::game::Level> level;
+                auto pos = game::Position::Zero;
+                std::optional<game::Level> level;
 
                 if (args.Length() >= 3 && args[0]->IsNumber() && args[1]->IsNumber() && args[2]->IsNumber()) {
                     // getRoom(levelId, x, y)
                     uint32_t levelId = v8_convert::ToUint32(isolate, args[0]);
-                    pos = v8_extract::Position(args, 1).value_or(d2bs::game::Position::Zero);
-                    level = d2bs::game::Level::Get(levelId);
+                    pos = v8_extract::Position(args, 1).value_or(game::Position::Zero);
+                    level = game::Level::Get(levelId);
                     if (!level) {
                         return;
                     }
                 } else {
                     // getRoom(x, y): search from player's room
-                    pos = v8_extract::Position(args, 0).value_or(d2bs::game::Position::Zero);
-                    auto player = d2bs::game::Unit::Player();
+                    pos = v8_extract::Position(args, 0).value_or(game::Position::Zero);
+                    auto player = game::Unit::Player();
                     if (!player) {
                         return;
                     }
@@ -714,7 +711,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto obj = JSRoom::CreateInstance(isolate, context, std::make_unique<d2bs::game::Room>(room));
+            auto obj = JSRoom::CreateInstance(isolate, context, std::make_unique<game::Room>(room));
             if (obj.IsEmpty())
                 return;
             args.GetReturnValue().Set(obj);
@@ -734,20 +731,20 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
 
             // No args: return first party member
             if (args.Length() == 0) {
-                auto firstOpt = d2bs::game::Party::GetFirst();
+                auto firstOpt = game::Party::GetFirst();
                 if (!firstOpt) {
                     return;
                 }
-                auto obj = JSParty::CreateInstance(isolate, context, std::make_unique<d2bs::game::Party>(*firstOpt));
+                auto obj = JSParty::CreateInstance(isolate, context, std::make_unique<game::Party>(*firstOpt));
                 if (obj.IsEmpty())
                     return;
                 args.GetReturnValue().Set(obj);
@@ -755,20 +752,20 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             // Search by name (string arg) or unit ID (number arg)
-            std::optional<d2bs::game::Party> found;
+            std::optional<game::Party> found;
             if (args[0]->IsString()) {
                 std::string name = v8_convert::ToString(isolate, args[0]);
-                found = d2bs::game::Party::FindByName(name);
+                found = game::Party::FindByName(name);
             } else if (args[0]->IsNumber()) {
                 uint32_t unitId = v8_convert::ToUint32(isolate, args[0]);
-                found = d2bs::game::Party::FindById(unitId);
+                found = game::Party::FindById(unitId);
             } else if (args[0]->IsObject()) {
                 // If a unit object is passed, match by its unit ID
                 auto unitObj = args[0].As<v8::Object>();
                 if (JSUnit::IsInstance(unitObj)) {
                     auto* unitData = JSUnit::Unwrap(unitObj);
                     if (unitData && *unitData) {
-                        found = d2bs::game::Party::FindById(unitData->Id());
+                        found = game::Party::FindById(unitData->Id());
                     } else {
                         v8_error::ThrowError(isolate, "Unable to get Unit");
                         return;
@@ -779,7 +776,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             if (!found) {
                 return;
             }
-            auto obj = JSParty::CreateInstance(isolate, context, std::make_unique<d2bs::game::Party>(*found));
+            auto obj = JSParty::CreateInstance(isolate, context, std::make_unique<game::Party>(*found));
             if (obj.IsEmpty())
                 return;
             args.GetReturnValue().Set(obj);
@@ -797,12 +794,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
 
             if (args.Length() < 1) {
                 args.GetReturnValue().SetFalse();
@@ -819,7 +816,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 nClassId = v8_convert::ToUint32(isolate, args[2]);
             }
 
-            auto level = d2bs::game::Level::Get(areaId);
+            auto level = game::Level::Get(areaId);
             if (!level) {
                 v8_error::ThrowError(isolate, "getPresetUnit failed, couldn't access the level!");
                 return;
@@ -831,7 +828,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto data = std::make_unique<d2bs::game::PresetUnitInfo>(matches.front());
+            auto data = std::make_unique<game::PresetUnitInfo>(matches.front());
             auto obj = JSPresetUnit::CreateInstance(isolate, context, std::move(data));
             if (obj.IsEmpty()) {
                 v8_error::ThrowError(isolate, "Failed to create PresetUnit object");
@@ -852,12 +849,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
 
             if (args.Length() < 1) {
                 args.GetReturnValue().SetFalse();
@@ -874,7 +871,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 nClassId = v8_convert::ToUint32(isolate, args[2]);
             }
 
-            auto level = d2bs::game::Level::Get(areaId);
+            auto level = game::Level::Get(areaId);
             if (!level) {
                 v8_error::ThrowError(isolate, "getPresetUnits failed, couldn't access the level!");
                 return;
@@ -883,13 +880,13 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto allPresets = level->GetPresetUnits(nType, nClassId);
             auto array = v8::Array::New(isolate, static_cast<int32_t>(allPresets.size()));
             for (size_t i = 0; i < allPresets.size(); ++i) {
-                auto data = std::make_unique<d2bs::game::PresetUnitInfo>(allPresets[i]);
+                auto data = std::make_unique<game::PresetUnitInfo>(allPresets[i]);
                 auto obj = JSPresetUnit::CreateInstance(isolate, context, std::move(data));
                 if (obj.IsEmpty()) {
                     v8_error::ThrowError(isolate, "Failed to build preset unit object");
                     return;
                 }
-                array->Set(context, static_cast<uint32_t>(i), obj).Check();
+                array->Set(context, i, obj).Check();
             }
 
             args.GetReturnValue().Set(array);
@@ -906,7 +903,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::ThrowError(isolate, "Game not ready");
                 return;
             }
@@ -925,20 +922,20 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 areaId = static_cast<uint32_t>(signedId);
             } else {
                 // Default: use player's current area
-                auto player = d2bs::game::Unit::Player();
+                auto player = game::Unit::Player();
                 if (!player) {
                     return;
                 }
                 areaId = player.Area();
             }
 
-            auto level = d2bs::game::Level::Get(areaId);
+            auto level = game::Level::Get(areaId);
             if (!level) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
 
-            auto obj = JSArea::CreateInstance(isolate, context, std::make_unique<d2bs::game::Level>(areaId));
+            auto obj = JSArea::CreateInstance(isolate, context, std::make_unique<game::Level>(areaId));
             if (obj.IsEmpty())
                 return;
             args.GetReturnValue().Set(obj);
@@ -983,21 +980,21 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     v8_function::Register(
         isolate, global, "getControl", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             // Reference JSControl.cpp line 295: controls only exist in menu state
-            if (d2bs::game::GetGameState() != d2bs::game::GameState::Menu) {
+            if (game::GetGameState() != game::GameState::Menu) {
                 return;
             }
 
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            std::optional<d2bs::game::ControlType> type;
+            std::optional<game::ControlType> type;
             std::optional<uint32_t> x;
             std::optional<uint32_t> y;
             std::optional<uint32_t> xsize;
             std::optional<uint32_t> ysize;
 
             if (args.Length() > 0 && args[0]->IsUint32()) {
-                type = static_cast<d2bs::game::ControlType>(v8_convert::ToUint32(isolate, args[0]));
+                type = static_cast<game::ControlType>(v8_convert::ToUint32(isolate, args[0]));
             }
             if (args.Length() > 1 && args[1]->IsUint32()) {
                 x = v8_convert::ToUint32(isolate, args[1]);
@@ -1012,12 +1009,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 ysize = v8_convert::ToUint32(isolate, args[4]);
             }
 
-            auto ctrl = d2bs::game::Control::Find(type, x, y, xsize, ysize);
+            auto ctrl = game::Control::Find(type, x, y, xsize, ysize);
             if (!ctrl) {
                 return;
             }
 
-            auto obj = JSControl::CreateInstance(isolate, context, std::make_unique<d2bs::game::Control>(*ctrl));
+            auto obj = JSControl::CreateInstance(isolate, context, std::make_unique<game::Control>(*ctrl));
             if (obj.IsEmpty())
                 return;
             args.GetReturnValue().Set(obj);
@@ -1029,7 +1026,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     v8_function::Register(
         isolate, global, "getControls", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             // Reference JSControl.cpp line 328: controls only exist in menu state
-            if (d2bs::game::GetGameState() != d2bs::game::GameState::Menu) {
+            if (game::GetGameState() != game::GameState::Menu) {
                 return;
             }
 
@@ -1040,12 +1037,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // One read lock for the whole walk: collapses the per-control
             // ResolvePtr locks to free recursive re-entries and pins a
             // consistent control-list snapshot for its duration.
-            auto lock = d2bs::game::Bridge::Lock();
-            if (auto firstCtrl = d2bs::game::Control::GetFirst()) {
+            auto lock = game::Bridge::Lock();
+            if (auto firstCtrl = game::Control::GetFirst()) {
                 auto context = isolate->GetCurrentContext();
                 uint32_t idx = 0;
                 for (auto ctrl = *firstCtrl; ctrl; ctrl = ctrl.GetNext()) {
-                    auto obj = JSControl::CreateInstance(isolate, context, std::make_unique<d2bs::game::Control>(ctrl));
+                    auto obj = JSControl::CreateInstance(isolate, context, std::make_unique<game::Control>(ctrl));
                     if (obj.IsEmpty())
                         continue;
                     array->Set(context, idx++, obj).Check();
@@ -1065,7 +1062,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "getPlayerFlag", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1084,8 +1081,8 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             // Resolve both unit IDs to Unit handles. TestPvpFlag takes const Unit& and re-resolves
             // by id internally.
-            auto u1 = d2bs::game::Unit::Find(unitId1);
-            auto u2 = d2bs::game::Unit::Find(unitId2);
+            auto u1 = game::Unit::Find(unitId1);
+            auto u2 = game::Unit::Find(unitId2);
             if (!u1 || !u2) {
                 args.GetReturnValue().Set(false);
                 return;
@@ -1101,19 +1098,19 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            auto npc = d2bs::game::Unit::InteractingNPC();
+            auto npc = game::Unit::InteractingNPC();
             if (!npc) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
 
             args.GetReturnValue().Set(
-                JSUnit::CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(*npc)));
+                JSUnit::CreateInstance(isolate, context, std::make_unique<game::Unit>(*npc)));
         });
 
     /// @description Check whether NPC dialog text is currently scrolling/displaying.
@@ -1121,13 +1118,13 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     /// @returns {boolean} - true if dialog text is scrolling
     v8_function::Register(
         isolate, global, "getIsTalkingNPC", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
             // Check if NPC dialog text is currently scrolling (not just interacting)
-            args.GetReturnValue().Set(d2bs::game::IsScrollingText());
+            args.GetReturnValue().Set(game::IsScrollingText());
         });
 
     /// @description Get the current NPC dialog menu lines; each line's handler() clicks it (matched by text).
@@ -1140,8 +1137,8 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             auto* isolate = args.GetIsolate();
             auto context = isolate->GetCurrentContext();
 
-            auto lock = d2bs::game::Bridge::Lock();
-            auto lines = d2bs::game::GetDialogLines();
+            auto lock = game::Bridge::Lock();
+            auto lines = game::GetDialogLines();
             if (lines.empty()) {
                 return;
             }
@@ -1161,7 +1158,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                         // the click unless it has a line with the same text.
                         auto* iso = handlerArgs.GetIsolate();
                         const std::string text = v8_convert::ToString(iso, handlerArgs.Data());
-                        if (!d2bs::game::SelectDialogLineByText(text)) {
+                        if (!game::SelectDialogLineByText(text)) {
                             // Reference parallel: my_clickDialog at JSGame.cpp:223.
                             v8_error::ThrowError(iso, "That dialog is not currently clickable.");
                         }
@@ -1194,7 +1191,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "clickMap", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1231,7 +1228,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             // Coordinate overload: clickMap(clickType, shift, x, y)
             if (args.Length() >= 4 && args[2]->IsNumber() && args[3]->IsNumber()) {
-                auto pos = v8_extract::Point(args, 2).value_or(d2bs::game::Point::Zero);
+                auto pos = v8_extract::Point(args, 2).value_or(game::Point::Zero);
                 args.GetReturnValue().Set(d2bs::game::ClickMapAt(clickType, shift, pos));
                 return;
             }
@@ -1259,7 +1256,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "clickItem", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1314,7 +1311,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 shape = Shape::ContainerGrid;
             }
 
-            using d2bs::game::ClickResult;
+            using game::ClickResult;
 
             if (shape == Shape::Unrecognized) {
                 // Ref falls through to rval=true at line 658 for unrecognized shapes.
@@ -1326,7 +1323,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // natural failure rval (null or throw), skipping the abstraction entirely.
             ClickResult result = ClickResult::InvalidTarget;
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
             switch (shape) {
                 case Shape::PlayerBodySlotByItem: {
                     auto obj = args[0].As<v8::Object>();
@@ -1371,7 +1368,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 }
                 case Shape::ContainerGrid: {
                     auto button = static_cast<game::ClickButton>(v8_convert::ToUint32(isolate, args[0]));
-                    auto gridPos = v8_extract::Position(args, 1).value_or(d2bs::game::Position::Zero);
+                    auto gridPos = v8_extract::Position(args, 1).value_or(game::Position::Zero);
                     auto location = static_cast<game::ItemLocation>(v8_convert::ToUint32(isolate, args[3]));
                     result = d2bs::game::ClickContainerSlot(button, gridPos, location);
                     break;
@@ -1432,7 +1429,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "clickParty", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1458,24 +1455,24 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            auto mode = static_cast<d2bs::game::PartyMode>(v8_convert::ToUint32(isolate, args[1]));
+            auto mode = static_cast<game::PartyMode>(v8_convert::ToUint32(isolate, args[1]));
 
             // Mode range check (reference supports modes 0-5)
-            if (mode > d2bs::game::PartyMode::HostileAlt) {
+            if (mode > game::PartyMode::HostileAlt) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
 
             // Prevent clicking self
-            auto player = d2bs::game::Unit::Player();
+            auto player = game::Unit::Player();
             if (player && partyData->Id() == player.Id()) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
 
             // Reference JSGame.cpp:1104 - AllowLoot is a no-op in non-hardcore games.
-            if (mode == d2bs::game::PartyMode::AllowLoot &&
-                !(d2bs::game::GetCharFlags() & std::to_underlying(d2bs::game::CharFlag::Hardcore))) {
+            if (mode == game::PartyMode::AllowLoot &&
+                !(game::GetCharFlags() & std::to_underlying(game::CharFlag::Hardcore))) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
@@ -1484,27 +1481,27 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // Reference reads `mypUnit->wPartyId`; we obtain it via the same roster walk.
             std::optional<uint16_t> playerPartyId;
             if (player) {
-                if (auto playerRoster = d2bs::game::Party::FindById(player.Id())) {
+                if (auto playerRoster = game::Party::FindById(player.Id())) {
                     playerPartyId = playerRoster->PartyId();
                 }
             }
             constexpr uint16_t NO_PARTY = 0xFFFF;
 
             // Reference JSGame.cpp:1108 - Invite no-ops if both are already in the same party.
-            if (mode == d2bs::game::PartyMode::Invite && partyData->PartyId() != NO_PARTY && playerPartyId &&
+            if (mode == game::PartyMode::Invite && partyData->PartyId() != NO_PARTY && playerPartyId &&
                 *playerPartyId == partyData->PartyId()) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
 
             // Reference JSGame.cpp:1112 - Leave no-ops if the target unit isn't in a party.
-            if (mode == d2bs::game::PartyMode::Leave && partyData->PartyId() == NO_PARTY) {
+            if (mode == game::PartyMode::Leave && partyData->PartyId() == NO_PARTY) {
                 args.GetReturnValue().SetFalse();
                 return;
             }
 
-            if (mode == d2bs::game::PartyMode::Leave) {
-                d2bs::game::LeaveParty();
+            if (mode == game::PartyMode::Leave) {
+                game::LeaveParty();
             } else {
                 d2bs::game::ClickPartyMember(*partyData, mode);
             }
@@ -1525,7 +1522,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 if (args[i]->IsNullOrUndefined())
                     continue;
                 std::string text = v8_convert::ToString(isolate, args[i]);
-                d2bs::game::Say(text);
+                game::Say(text);
             }
             args.GetReturnValue().Set(true);
         });
@@ -1546,7 +1543,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
             std::string text = v8_convert::ToString(isolate, args[0]);
             int32_t color = args.Length() > 1 ? v8_convert::ToInt32(isolate, args[1]) : 0;
-            d2bs::game::PrintGameString(text, color);
+            game::PrintGameString(text, color);
             args.GetReturnValue().Set(true);
         });
 
@@ -1564,7 +1561,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             uint32_t soundId = v8_convert::ToUint32(isolate, args[0]);
-            d2bs::game::PlayGameSound(soundId);
+            game::PlayGameSound(soundId);
             args.GetReturnValue().Set(true);
         });
 
@@ -1574,8 +1571,8 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     v8_function::Register(
         isolate, global, "quit", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             // Reference line 1022: JS_SET_RVAL(cx, vp, JSVAL_FALSE)
-            if (d2bs::game::IsInGame()) {
-                d2bs::game::ExitGame();
+            if (game::IsInGame()) {
+                game::ExitGame();
             }
             args.GetReturnValue().SetFalse();
         });
@@ -1586,8 +1583,8 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     v8_function::Register(
         isolate, global, "quitGame", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             // Reference line 1010: JS_SET_RVAL(cx, vp, JSVAL_FALSE)
-            if (d2bs::game::IsInGame()) {
-                d2bs::game::ExitGame();
+            if (game::IsInGame()) {
+                game::ExitGame();
             }
             TerminateProcess(GetCurrentProcess(), 0);
             args.GetReturnValue().SetFalse();
@@ -1598,12 +1595,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     /// @returns {null} - null
     v8_function::Register(
         isolate, global, "transmute", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            d2bs::game::Transmute();
+            game::Transmute();
             args.GetReturnValue().SetNull();
         });
 
@@ -1615,7 +1612,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "weaponSwitch", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1627,14 +1624,14 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             if (nParameter != 0) {
                 // Return current weapon switch state
-                args.GetReturnValue().Set(static_cast<int32_t>(d2bs::game::GetWeaponSwitch()));
+                args.GetReturnValue().Set(static_cast<int32_t>(game::GetWeaponSwitch()));
             } else {
                 // Reference JSGame.cpp:1243 - classic D2 has no weapon switch.
-                if (!(d2bs::game::GetCharFlags() & std::to_underlying(d2bs::game::CharFlag::Expansion))) {
+                if (!(game::GetCharFlags() & std::to_underlying(game::CharFlag::Expansion))) {
                     args.GetReturnValue().SetFalse();
                     return;
                 }
-                d2bs::game::SwapWeapon();
+                game::SwapWeapon();
                 args.GetReturnValue().Set(true);
             }
         });
@@ -1648,7 +1645,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "useStatPoint", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1663,7 +1660,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             if (args.Length() > 1) {
                 count = v8_convert::ToInt32(isolate, args[1]);
             }
-            d2bs::game::UseStatPoint(stat, count);
+            game::UseStatPoint(stat, count);
         });
 
     /// @description Spend unallocated skill points on a skill.
@@ -1675,7 +1672,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "useSkillPoint", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1690,7 +1687,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             if (args.Length() > 1) {
                 count = v8_convert::ToInt32(isolate, args[1]);
             }
-            d2bs::game::UseSkillPoint(skill, count);
+            game::UseSkillPoint(skill, count);
         });
 
     /// @description Capture a screenshot of the game.
@@ -1698,7 +1695,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     /// @returns {undefined} - no return value
     v8_function::Register(
         isolate, global, "takeScreenshot",
-        +[](const v8::FunctionCallbackInfo<v8::Value>& args) { d2bs::game::TakeScreenshot(); });
+        +[](const v8::FunctionCallbackInfo<v8::Value>& args) { game::TakeScreenshot(); });
 
     /// @description Copy a string to the Windows clipboard (CF_TEXT); best-effort, no-op on failure.
     /// @signature copy(text: string)
@@ -1799,7 +1796,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 data = v8_convert::ToString(isolate, args[3]);
             }
 
-            args.GetReturnValue().Set(d2bs::game::SendIPC(modeId, data, hwnd, windowClassName, windowName));
+            args.GetReturnValue().Set(game::SendIPC(modeId, data, hwnd, windowClassName, windowName));
         });
 
     /// @description Check whether a virtual key is currently down (GetAsyncKeyState).
@@ -1838,7 +1835,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 asObject = v8_convert::ToBool(isolate, args[1]);
             }
 
-            auto mouse = d2bs::game::GetMousePos();
+            auto mouse = game::GetMousePos();
             auto p = mouse.ToPoint();
 
             if (toWorld) {
@@ -1872,7 +1869,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             // Strict: reject non-numeric input (string->int coercion silently corrupted coords).
-            auto p = d2bs::game::Point::Zero;
+            auto p = game::Point::Zero;
             if (args.Length() == 1 && args[0]->IsObject()) {
                 auto extracted = v8_extract::Point(isolate, args[0]);
                 if (!extracted) {
@@ -1909,7 +1906,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             // Strict: reject non-numeric input (string->int coercion silently corrupted coords).
-            auto p = d2bs::game::Point::Zero;
+            auto p = game::Point::Zero;
             if (args.Length() == 1 && args[0]->IsObject()) {
                 auto extracted = v8_extract::Point(isolate, args[0]);
                 if (!extracted) {
@@ -1950,7 +1947,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "getDistance", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -1962,7 +1959,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             // Helper: extract a Point from an object -- either JSUnit or plain {x, y}
-            auto getObjectPoint = [&](v8::Local<v8::Object> obj) -> std::optional<d2bs::game::Point> {
+            auto getObjectPoint = [&](v8::Local<v8::Object> obj) -> std::optional<game::Point> {
                 if (JSUnit::IsInstance(obj)) {
                     auto* unitData = JSUnit::Unwrap(obj);
                     if (!unitData || !*unitData) {
@@ -1976,8 +1973,8 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             // (x1, y1, x2, y2) -- pure coordinate distance
             if (args.Length() == 4 && args[0]->IsNumber() && args[1]->IsNumber() && args[2]->IsNumber() &&
                 args[3]->IsNumber()) {
-                auto p1 = v8_extract::Point(args, 0).value_or(d2bs::game::Point::Zero);
-                auto p2 = v8_extract::Point(args, 2).value_or(d2bs::game::Point::Zero);
+                auto p1 = v8_extract::Point(args, 0).value_or(game::Point::Zero);
+                auto p2 = v8_extract::Point(args, 2).value_or(game::Point::Zero);
                 args.GetReturnValue().Set(Distance(p1, p2));
                 return;
             }
@@ -1986,7 +1983,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             if (args.Length() == 1 && args[0]->IsObject()) {
                 auto p2 = getObjectPoint(args[0].As<v8::Object>());
                 if (p2) {
-                    auto player = d2bs::game::Unit::Player();
+                    auto player = game::Unit::Player();
                     if (player) {
                         auto p1 = player.Pos().ToPoint();
                         args.GetReturnValue().Set(Distance(p1, *p2));
@@ -1998,12 +1995,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             if (args.Length() == 2) {
                 // (x, y) -- distance from player to point
                 if (args[0]->IsNumber() && args[1]->IsNumber()) {
-                    auto player = d2bs::game::Unit::Player();
+                    auto player = game::Unit::Player();
                     if (!player) {
                         return;
                     }
                     auto p1 = player.Pos().ToPoint();
-                    auto p2 = v8_extract::Point(args, 0).value_or(d2bs::game::Point::Zero);
+                    auto p2 = v8_extract::Point(args, 0).value_or(game::Point::Zero);
                     args.GetReturnValue().Set(Distance(p1, p2));
                     return;
                 }
@@ -2023,7 +2020,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 if (args[0]->IsObject() && args[1]->IsNumber() && args[2]->IsNumber()) {
                     auto p1 = getObjectPoint(args[0].As<v8::Object>());
                     if (p1) {
-                        auto p2 = v8_extract::Point(args, 1).value_or(d2bs::game::Point::Zero);
+                        auto p2 = v8_extract::Point(args, 1).value_or(game::Point::Zero);
                         args.GetReturnValue().Set(Distance(*p1, p2));
                         return;
                     }
@@ -2032,7 +2029,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 if (args[0]->IsNumber() && args[1]->IsNumber() && args[2]->IsObject()) {
                     auto p2 = getObjectPoint(args[2].As<v8::Object>());
                     if (p2) {
-                        auto p1 = v8_extract::Point(args, 0).value_or(d2bs::game::Point::Zero);
+                        auto p1 = v8_extract::Point(args, 0).value_or(game::Point::Zero);
                         args.GetReturnValue().Set(Distance(p1, *p2));
                         return;
                     }
@@ -2049,18 +2046,18 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "gold", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
             int32_t nGold = 0;
-            auto nMode = d2bs::game::GoldActionMode::Stash;
+            auto nMode = game::GoldActionMode::Stash;
             if (args.Length() > 0 && args[0]->IsNumber()) {
                 nGold = v8_convert::ToInt32(isolate, args[0]);
             }
             if (args.Length() > 1 && args[1]->IsNumber()) {
-                nMode = static_cast<d2bs::game::GoldActionMode>(v8_convert::ToInt32(isolate, args[1]));
+                nMode = static_cast<game::GoldActionMode>(v8_convert::ToInt32(isolate, args[1]));
             }
             d2bs::game::GoldAction(nMode, nGold);
         });
@@ -2084,12 +2081,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
     /// @returns {boolean} - true if the item was submitted, false if no cursor item
     v8_function::Register(
         isolate, global, "submitItem", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            auto cursorItem = d2bs::game::Unit::CursorItem();
+            auto cursorItem = game::Unit::CursorItem();
             if (!cursorItem) {
                 args.GetReturnValue().SetFalse();
                 return;
@@ -2126,7 +2123,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             args.GetReturnValue().Set(
-                JSUnit::CreateInstance(isolate, context, std::make_unique<d2bs::game::Unit>(*srcUnit)));
+                JSUnit::CreateInstance(isolate, context, std::make_unique<game::Unit>(*srcUnit)));
         });
 
     /// @description Accept a trade, or query trade state by mode.
@@ -2137,32 +2134,32 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "acceptTrade", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
+            auto lock = game::Bridge::Lock();
             if (args.Length() > 0) {
-                auto mode = static_cast<d2bs::game::AcceptTradeQueryMode>(v8_convert::ToInt32(isolate, args[0]));
-                if (mode == d2bs::game::AcceptTradeQueryMode::IsAccepted) {
+                auto mode = static_cast<game::AcceptTradeQueryMode>(v8_convert::ToInt32(isolate, args[0]));
+                if (mode == game::AcceptTradeQueryMode::IsAccepted) {
                     // Reference: BOOLEAN_TO_JSVAL(*p_D2CLIENT_bTradeAccepted)
-                    args.GetReturnValue().Set(d2bs::game::IsTradeAccepted());
+                    args.GetReturnValue().Set(game::IsTradeAccepted());
                     return;
                 }
-                if (mode == d2bs::game::AcceptTradeQueryMode::RecentTradeId) {
+                if (mode == game::AcceptTradeQueryMode::RecentTradeId) {
                     // Reference: INT_TO_JSVAL(*p_D2CLIENT_RecentTradeId)
-                    args.GetReturnValue().Set(d2bs::game::GetRecentTradeId());
+                    args.GetReturnValue().Set(game::GetRecentTradeId());
                     return;
                 }
-                if (mode == d2bs::game::AcceptTradeQueryMode::IsBlocked) {
+                if (mode == game::AcceptTradeQueryMode::IsBlocked) {
                     // Reference: BOOLEAN_TO_JSVAL(*p_D2CLIENT_bTradeBlock)
-                    args.GetReturnValue().Set(d2bs::game::IsTradeBlocked());
+                    args.GetReturnValue().Set(game::IsTradeBlocked());
                     return;
                 }
             }
 
-            args.GetReturnValue().Set(d2bs::game::AcceptTrade());
+            args.GetReturnValue().Set(game::AcceptTrade());
         });
 
     /// @description Click OK in the trade window.
@@ -2173,13 +2170,13 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "tradeOk", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
-            if (!d2bs::game::TradeOK()) {
+            auto lock = game::Bridge::Lock();
+            if (!game::TradeOK()) {
                 v8_error::ThrowError(isolate, "Not in proper state to click ok to trade.");
             }
         });
@@ -2194,7 +2191,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "checkCollision", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
@@ -2235,12 +2232,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "moveNPC", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::WaitForGameReady(d2bs::config::GetAppConfig().gameReadyTimeout)) {
+            if (!game::WaitForGameReady(config::GetAppConfig().gameReadyTimeout)) {
                 v8_error::WarnAndReturnFalse(args, "Game not ready");
                 return;
             }
 
-            if (!d2bs::config::GetAppConfig().enableUnsupported.load()) {
+            if (!config::GetAppConfig().enableUnsupported.load()) {
                 v8_error::WarnAndReturnFalse(args, "moveNPC requires enableUnsupported = true in config");
                 return;
             }
@@ -2267,12 +2264,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             // Reference line 1435: unit must be a monster/NPC (type 1)
-            if (unitData->Type() != d2bs::game::UnitType::Monster) {
+            if (unitData->Type() != game::UnitType::Monster) {
                 v8_error::ThrowError(isolate, "Invalid NPC passed to moveNPC!");
                 return;
             }
 
-            auto pos = v8_extract::Position(args, 1).value_or(d2bs::game::Position::Zero);
+            auto pos = v8_extract::Position(args, 1).value_or(game::Position::Zero);
 
             d2bs::game::MoveNPC(unitData->Id(), pos);
         });
@@ -2285,7 +2282,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
         isolate, global, "revealLevel", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
             auto* isolate = args.GetIsolate();
 
-            if (!d2bs::game::IsGameReady()) {
+            if (!game::IsGameReady()) {
                 return;
             }
 
@@ -2294,14 +2291,14 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 drawPresets = args[0]->BooleanValue(isolate);
             }
 
-            auto lock = d2bs::game::Bridge::Lock();
-            auto player = d2bs::game::Unit::Player();
+            auto lock = game::Bridge::Lock();
+            auto player = game::Unit::Player();
             if (!player) {
                 return;
             }
 
             uint32_t levelNo = player.Area();
-            d2bs::game::RevealLevel(levelNo, drawPresets);
+            game::RevealLevel(levelNo, drawPresets);
         });
 }
 

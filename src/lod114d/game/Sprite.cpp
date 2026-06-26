@@ -6,7 +6,6 @@
 
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -54,7 +53,7 @@ Cache& GlobalCache() {
 }
 
 std::shared_ptr<spdlog::logger>& Logger() {
-    static auto logger = d2bs::utils::GetLogger("sprite");
+    static auto logger = utils::GetLogger("sprite");
     return logger;
 }
 
@@ -67,8 +66,8 @@ std::shared_ptr<spdlog::logger>& Logger() {
 void* WrapBmpAsDc6(const uint8_t* pixels, uint32_t width, uint32_t height) {
     // Stride is 4-byte aligned per BMP convention. All multiplications below
     // are done in size_t to avoid 32-bit overflow on pathological inputs.
-    const auto w = static_cast<size_t>(width);
-    const auto h = static_cast<size_t>(height);
+    const auto w = width;
+    const auto h = height;
     const auto stride = (w + 3U) & ~size_t{3U};
     // Worst-case RLE expansion is 2 bytes per pixel + 1 terminator per row.
     std::vector<uint8_t> rle((w * h * 2U) + h);
@@ -77,7 +76,7 @@ void* WrapBmpAsDc6(const uint8_t* pixels, uint32_t width, uint32_t height) {
     // order (top scanline of pixels[] maps to top of the sprite); we keep
     // the same convention to stay binary-compatible with D2's renderer.
     for (uint32_t row = 0; row < height; ++row) {
-        const uint8_t* src = pixels + (static_cast<size_t>(row) * stride);
+        const uint8_t* src = pixels + (row * stride);
         const uint8_t* limit = src + width;
         while (src < limit) {
             const uint8_t* start = src;
@@ -108,7 +107,7 @@ void* WrapBmpAsDc6(const uint8_t* pixels, uint32_t width, uint32_t height) {
         6, 1, 0, DC6_TERMINATION_MARKER, 1, 1, 0x1c, 0, width, height, 0, 0, 0, 0, 0,
     };
     head[14] = static_cast<uint32_t>(rleLen);
-    head[13] = static_cast<uint32_t>(sizeof(head)) + head[14] + 3;
+    head[13] = sizeof(head) + head[14] + 3;
 
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) - ownership transferred to game cache
     auto* buf = new uint8_t[head[13]];

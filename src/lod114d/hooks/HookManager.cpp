@@ -13,7 +13,6 @@
 #include "components/speedhack/Speedhack.h"
 #include "console/Console.h"
 #include "game/GameThread.h"
-#include "hooks/InlinePatch.h"
 #include "hooks/Intercepts.h"
 #include "hooks/Socks5Proxy.h"
 #include "imports/D2Gfx.h"
@@ -38,7 +37,7 @@ std::atomic<bool> isInstalled{false};
 // that calls the original implementation).
 using SleepFn = VOID(WINAPI*)(DWORD);
 using CursorLockFn = BOOL(__fastcall*)(int, int);
-SleepFn realSleep = ::Sleep;
+SleepFn realSleep = Sleep;
 CursorLockFn realCursorLock = nullptr;
 
 // Win32 hook handle
@@ -296,7 +295,7 @@ LRESULT CALLBACK SubclassedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 void InstallDetoursHooks() {
     auto base = reinterpret_cast<uintptr_t>(GetModuleHandle(nullptr));
     realCursorLock = reinterpret_cast<CursorLockFn>(base + CURSOR_LOCK_OFFSET);
-    realSleep = ::Sleep;
+    realSleep = Sleep;
 
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());

@@ -38,8 +38,8 @@ struct D2DrlgRoomStrc {
     D2DrlgRoomStrc** ppRoomsNear;           // 0x08 - reference Room2::pRoom2Near
     std::array<uint32_t, 5> _2;             // 0x0C - opaque (reference Room2._2[5])
     union {                                 // 0x20 - reference Room2::pType2Info
-        ::D2DrlgPresetRoomStrc* pMaze;      // D2MOO union arm name
-        ::D2DrlgOutdoorRoomStrc* pOutdoor;  // D2MOO union arm name
+        D2DrlgPresetRoomStrc* pMaze;      // D2MOO union arm name
+        D2DrlgOutdoorRoomStrc* pOutdoor;  // D2MOO union arm name
     };
     D2DrlgRoomStrc* pDrlgRoomNext;   // 0x24 - reference Room2::pRoom2Next
     uint32_t dwFlags;                // 0x28 - reference Room2::dwRoomFlags

@@ -4,7 +4,6 @@
 // port. Never touches game memory directly.
 
 #include <array>
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -66,7 +65,7 @@ inline bool Matches(const Unit& u, const UnitCursorState& s) {
 
     if (s.name && !s.name->empty()) {
         std::string candidate = (u.Type() == UnitType::Item) ? u.ItemCode() : u.Name();
-        if (!d2bs::utils::EqualsCaseInsensitive(candidate, *s.name))
+        if (!utils::EqualsCaseInsensitive(candidate, *s.name))
             return false;
     }
 
@@ -91,14 +90,14 @@ inline std::optional<UnitType> NextTypeAfter(UnitType t) {
 
 inline std::optional<Unit> Unit::FindFirst(const UnitCursorState& s) {
     if (s.unitId) {
-        auto u = Unit::Find(*s.unitId, s.type);
+        auto u = Find(*s.unitId, s.type);
         if (u && Matches(*u, s))
             return Stamped(*u, s);
         return std::nullopt;
     }
 
     if (s.type) {
-        for (auto u = Unit::GetFirstInGame(*s.type); u; u = u->GetNextInGame()) {
+        for (auto u = GetFirstInGame(*s.type); u; u = u->GetNextInGame()) {
             if (Matches(*u, s))
                 return Stamped(*u, s);
         }
@@ -106,7 +105,7 @@ inline std::optional<Unit> Unit::FindFirst(const UnitCursorState& s) {
     }
 
     for (auto t : ALL_UNIT_TYPES) {
-        for (auto u = Unit::GetFirstInGame(t); u; u = u->GetNextInGame()) {
+        for (auto u = GetFirstInGame(t); u; u = u->GetNextInGame()) {
             if (Matches(*u, s))
                 return Stamped(*u, s);
         }
@@ -127,7 +126,7 @@ inline std::optional<Unit> Unit::FindNext() const {
         return std::nullopt;
 
     for (auto t = NextTypeAfter(Type()); t; t = NextTypeAfter(*t)) {
-        for (auto u = Unit::GetFirstInGame(*t); u; u = u->GetNextInGame()) {
+        for (auto u = GetFirstInGame(*t); u; u = u->GetNextInGame()) {
             if (Matches(*u, s))
                 return Stamped(*u, s);
         }
@@ -154,7 +153,7 @@ inline std::optional<Unit> Unit::FindNextInventoryItem() const {
     if (!s.ownerId || !s.ownerType)
         return std::nullopt;  // Not an InventoryItem cursor.
 
-    auto anchor = Unit::Find(*s.ownerId, *s.ownerType);
+    auto anchor = Find(*s.ownerId, *s.ownerType);
     if (!anchor)
         return std::nullopt;
 
@@ -181,7 +180,7 @@ inline std::optional<Unit> Unit::FindMerc() const {
     // avoids introducing Act-level Room1 traversal primitives just for this
     // one method. Filter: dwType==Monster, dwTxtFileNo in {MERC_A1..A5},
     // GetMonsterOwner(merc) resolves to the caller.
-    for (auto m = Unit::GetFirstInGame(UnitType::Monster); m; m = m->GetNextInGame()) {
+    for (auto m = GetFirstInGame(UnitType::Monster); m; m = m->GetNextInGame()) {
         const auto cls = m->ClassId();
         if (cls != MERC_CLASS_ID_ACT1 && cls != MERC_CLASS_ID_ACT2 && cls != MERC_CLASS_ID_ACT3 &&
             cls != MERC_CLASS_ID_ACT5)
@@ -235,7 +234,7 @@ inline std::vector<PresetUnitInfo> Level::GetPresetUnits(std::optional<uint32_t>
 
 // Reference: JSParty.cpp:127 - exact GID match on the roster chain.
 inline std::optional<Party> Party::FindById(uint32_t id) {
-    for (auto p = Party::GetFirst(); p; p = std::optional<Party>{p->GetNext()}) {
+    for (auto p = GetFirst(); p; p = std::optional<Party>{p->GetNext()}) {
         if (!*p)
             break;
         if (p->Id() == id)
@@ -246,10 +245,10 @@ inline std::optional<Party> Party::FindById(uint32_t id) {
 
 // Reference: JSParty.cpp:132 - case-insensitive ASCII compare (`_stricmp`).
 inline std::optional<Party> Party::FindByName(const std::string& name) {
-    for (auto p = Party::GetFirst(); p; p = std::optional<Party>{p->GetNext()}) {
+    for (auto p = GetFirst(); p; p = std::optional<Party>{p->GetNext()}) {
         if (!*p)
             break;
-        if (d2bs::utils::EqualsCaseInsensitive(p->Name(), name))
+        if (utils::EqualsCaseInsensitive(p->Name(), name))
             return p;
     }
     return std::nullopt;
@@ -270,9 +269,9 @@ inline std::optional<Control> Control::Find(std::optional<ControlType> type, std
     // free recursive re-entries, and the control list can't shift mid-iteration.
     auto guard = Bridge::Lock();
     if (!type && !x && !y && !xsize && !ysize && !localeId) {
-        return Control::GetFirst();
+        return GetFirst();
     }
-    for (auto c = Control::GetFirst(); c; c = std::optional<Control>{c->GetNext()}) {
+    for (auto c = GetFirst(); c; c = std::optional<Control>{c->GetNext()}) {
         if (!*c)
             break;
         if (type && c->Type() != *type)

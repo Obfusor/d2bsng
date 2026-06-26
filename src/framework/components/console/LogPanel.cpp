@@ -16,9 +16,9 @@ namespace d2bs::framework::console {
 
 namespace {
 
-using d2bs::game::console::Message;
-using d2bs::game::console::MessageLevel;
-using d2bs::game::console::MessageSource;
+using game::console::Message;
+using game::console::MessageLevel;
+using game::console::MessageSource;
 
 constexpr std::array<MessageLevel, 6> ALL_LEVELS = {
     MessageLevel::Trace, MessageLevel::Debug, MessageLevel::Info,
@@ -85,7 +85,7 @@ bool LogPanel::MatchesFilter(const Entry& entry) const {
         }
     }
     const std::string_view textFilter(textFilter_.data());
-    return textFilter.empty() || d2bs::utils::ContainsCaseInsensitive(entry.msg.text, textFilter);
+    return textFilter.empty() || utils::ContainsCaseInsensitive(entry.msg.text, textFilter);
 }
 
 void LogPanel::DrawFilterBar() {
@@ -201,7 +201,7 @@ void LogPanel::CopyViewToClipboard() const {
         buf += fmt::format("[{}] [{}] [{}] ", theme::FormatTimestamp(entry.ts),
                            entry.msg.name.empty() ? std::string_view{"d2bs"} : Basename(entry.msg.name),
                            theme::LevelTag(entry.msg.level));
-        buf += d2bs::game::console::StripColor(entry.msg.text);
+        buf += game::console::StripColor(entry.msg.text);
         buf += '\n';
     }
     ImGui::SetClipboardText(buf.c_str());
@@ -226,7 +226,7 @@ void LogPanel::DrawScrollback() {
                             theme::LevelTag(entry.msg.level));
             ImGui::TextColored(PREFIX_COLOR, "%s", prefix.c_str());
 
-            for (const auto& seg : d2bs::game::console::SplitByColor(entry.msg.text)) {
+            for (const auto& seg : game::console::SplitByColor(entry.msg.text)) {
                 if (seg.text.empty()) {
                     continue;
                 }

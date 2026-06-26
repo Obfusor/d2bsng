@@ -12,7 +12,7 @@ namespace d2bs::api::classes {
 
 // Control class - represents a UI control element in menu screens
 // Controls are interactive elements like buttons, text boxes, labels
-class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
+class JSControl : public V8ClassBase<JSControl, game::Control> {
    public:
     static constexpr std::string_view ClassName = "Control";
 
@@ -29,11 +29,11 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
     // property setters (PropertyCallbackInfo<void>, .Holder()) and methods
     // (FunctionCallbackInfo<v8::Value>, .This()) via tag dispatch on InfoT.
     template <typename InfoT>
-    static d2bs::game::Control* MenuOnly(const InfoT& info) {
-        if (d2bs::game::GetGameState() != d2bs::game::GameState::Menu) {
+    static game::Control* MenuOnly(const InfoT& info) {
+        if (game::GetGameState() != game::GameState::Menu) {
             return nullptr;
         }
-        d2bs::game::Control* data = nullptr;
+        game::Control* data = nullptr;
         if constexpr (std::is_same_v<InfoT, v8::FunctionCallbackInfo<v8::Value>>) {
             data = Unwrap(info.This());
         } else {
@@ -72,7 +72,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                 if (!data)
                     return;
                 // Only editable text controls (EditBox) support SetText
-                if (data->Type() != d2bs::game::ControlType::EditBox || !value->IsString()) {
+                if (data->Type() != game::ControlType::EditBox || !value->IsString()) {
                     return;
                 }
                 auto* isolate = info.GetIsolate();
@@ -232,7 +232,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
         /// handle is stale
         Method(
             isolate, proto, "getNext", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-                if (d2bs::game::GetGameState() != d2bs::game::GameState::Menu) {
+                if (game::GetGameState() != game::GameState::Menu) {
                     return;
                 }
                 auto* data = Unwrap(args.This());
@@ -256,7 +256,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
         /// @returns {undefined|number} - undefined normally; 0 if the control handle is stale
         Method(
             isolate, proto, "click", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-                if (d2bs::game::GetGameState() != d2bs::game::GameState::Menu) {
+                if (game::GetGameState() != game::GameState::Menu) {
                     return;
                 }
                 auto* data = Unwrap(args.This());
@@ -273,9 +273,9 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                 // `if (x == -1) x = dwPosX + dwSizeX / 2`. Preserves the asymmetric
                 // `click(-1, 400)` = "default X, Y=400" case that a uint-only gate would
                 // collapse into "default both".
-                std::optional<d2bs::game::Position> pos;
+                std::optional<game::Position> pos;
                 if (args.Length() > 1 && args[0]->IsInt32() && args[1]->IsInt32()) {
-                    pos = d2bs::api::v8_extract::Position(args, 0);
+                    pos = v8_extract::Position(args, 0);
                 }
                 data->Click(pos);
             });
@@ -285,7 +285,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
         /// @returns {undefined|number} - undefined normally; 0 if the control handle is stale
         Method(
             isolate, proto, "setText", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-                if (d2bs::game::GetGameState() != d2bs::game::GameState::Menu) {
+                if (game::GetGameState() != game::GameState::Menu) {
                     return;
                 }
                 auto* data = Unwrap(args.This());
@@ -306,7 +306,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
         /// (multiple slots); 0 if the control handle is stale
         Method(
             isolate, proto, "getText", +[](const v8::FunctionCallbackInfo<v8::Value>& args) {
-                if (d2bs::game::GetGameState() != d2bs::game::GameState::Menu) {
+                if (game::GetGameState() != game::GameState::Menu) {
                     return;
                 }
                 auto* data = Unwrap(args.This());
@@ -318,7 +318,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                 auto context = isolate->GetCurrentContext();
 
                 // Only list controls (TextBox) have text lines
-                if (data->Type() != d2bs::game::ControlType::TextBox) {
+                if (data->Type() != game::ControlType::TextBox) {
                     return;
                 }
 
@@ -332,7 +332,7 @@ class JSControl : public V8ClassBase<JSControl, d2bs::game::Control> {
                     if (line[1].has_value()) {
                         // Multiple text slots: return as sparse sub-array preserving slot indices
                         auto inner = v8::Array::New(isolate);
-                        for (uint32_t j = 0; j < d2bs::game::Control::TEXT_SLOTS; ++j) {
+                        for (uint32_t j = 0; j < game::Control::TEXT_SLOTS; ++j) {
                             if (line.at(j).has_value()) {
                                 inner->Set(context, j, v8_convert::ToV8(isolate, *line.at(j))).Check();
                             }

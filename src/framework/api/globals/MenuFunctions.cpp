@@ -1,7 +1,5 @@
 #include "MenuFunctions.h"
 
-#include <cstdint>
-
 #include "api/core/V8Convert.h"
 #include "api/core/V8Error.h"
 #include "api/core/V8Function.h"
@@ -42,7 +40,7 @@ void RegisterMenuFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 }
             }
 
-            auto profile = d2bs::profile::Load(profileName);
+            auto profile = profile::Load(profileName);
             if (!profile) {
                 v8_error::ThrowError(isolate, "Profile does not exist!");
                 return;
@@ -76,7 +74,7 @@ void RegisterMenuFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             }
 
             std::string profileName = v8_convert::ToString(isolate, args[0]);
-            auto charname = d2bs::profile::ResolveCharacter(profileName);
+            auto charname = profile::ResolveCharacter(profileName);
             if (!charname) {
                 v8_error::ThrowError(isolate, "Invalid profile specified");
                 return;
@@ -350,7 +348,7 @@ void RegisterMenuFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             // Return value discarded; reference sets rval=null regardless of
             // whether the profile already existed.
-            d2bs::profile::Add(data);
+            profile::Add(data);
             args.GetReturnValue().SetNull();
         });
 

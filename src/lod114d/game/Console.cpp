@@ -10,7 +10,7 @@
 namespace d2bs::game::console {
 
 void OnMessage(const Message& msg) {
-    d2bs::framework::console::OnMessage(msg);
+    framework::console::OnMessage(msg);
 }
 
 void Show() {

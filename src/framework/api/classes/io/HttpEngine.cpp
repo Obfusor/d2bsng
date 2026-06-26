@@ -35,7 +35,7 @@ std::string FormatLastError() {
     DWORD chars =
         FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                        nullptr, code, 0, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
-    std::string message = (chars != 0 && buffer != nullptr) ? d2bs::utils::ToStr(std::wstring(buffer, chars)) : "";
+    std::string message = (chars != 0 && buffer != nullptr) ? utils::ToStr(std::wstring(buffer, chars)) : "";
     if (buffer != nullptr) {
         LocalFree(buffer);
     }
@@ -93,7 +93,7 @@ std::string QueryStringHeader(HINTERNET request, DWORD infoLevel) {
     if (nul != std::wstring::npos) {
         buffer.resize(nul);
     }
-    return d2bs::utils::ToStr(buffer);
+    return utils::ToStr(buffer);
 }
 
 // Query a string-valued request option (e.g. WINHTTP_OPTION_URL) into UTF-8.
@@ -111,7 +111,7 @@ std::string QueryStringOption(HINTERNET request, DWORD option) {
     if (nul != std::wstring::npos) {
         buffer.resize(nul);
     }
-    return d2bs::utils::ToStr(buffer);
+    return utils::ToStr(buffer);
 }
 
 // Parse a WINHTTP_QUERY_RAW_HEADERS_CRLF block into a lowercased-name map. The
@@ -128,8 +128,8 @@ void ParseHeaders(const std::string& raw, std::map<std::string, std::string>& ou
         if (colon == std::string::npos) {
             continue;
         }
-        std::string name = d2bs::utils::ToLower(line.substr(0, colon));
-        std::string value(d2bs::utils::Trim(std::string_view(line).substr(colon + 1)));
+        std::string name = utils::ToLower(line.substr(0, colon));
+        std::string value(utils::Trim(std::string_view(line).substr(colon + 1)));
 
         auto existing = out.find(name);
         if (existing == out.end()) {
@@ -146,9 +146,9 @@ std::string PerformHttpRequest(const HttpRequest& request, HttpResponse& out) {
     // Keep script HTTP off the game's SOCKS5 connect detour (see ProxyBypass.h).
     // Synchronous WinHTTP issues its connect() on this thread, so the thread-local
     // bypass applies.
-    d2bs::proxy::BypassScope noProxy;
+    proxy::BypassScope noProxy;
 
-    std::wstring wideUrl = d2bs::utils::ToWStr(request.url);
+    std::wstring wideUrl = utils::ToWStr(request.url);
 
     URL_COMPONENTS components = {};
     components.dwStructSize = sizeof(components);
@@ -213,7 +213,7 @@ std::string PerformHttpRequest(const HttpRequest& request, HttpResponse& out) {
     }
 
     const DWORD requestFlags = isHttps ? WINHTTP_FLAG_SECURE : 0;
-    std::wstring method = d2bs::utils::ToWStr(request.method);
+    std::wstring method = utils::ToWStr(request.method);
     const wchar_t* objectName = path.empty() ? nullptr : path.c_str();
     WinHttpHandle handle(WinHttpOpenRequest(connection.Get(), method.c_str(), objectName, nullptr, WINHTTP_NO_REFERER,
                                             WINHTTP_DEFAULT_ACCEPT_TYPES, requestFlags));
@@ -236,17 +236,17 @@ std::string PerformHttpRequest(const HttpRequest& request, HttpResponse& out) {
 
     std::wstring headerBlock;
     for (const auto& [name, value] : request.headers) {
-        headerBlock += d2bs::utils::ToWStr(name);
+        headerBlock += utils::ToWStr(name);
         headerBlock += L": ";
-        headerBlock += d2bs::utils::ToWStr(value);
+        headerBlock += utils::ToWStr(value);
         headerBlock += L"\r\n";
     }
     if (!headerBlock.empty()) {
-        WinHttpAddRequestHeaders(handle.Get(), headerBlock.c_str(), static_cast<DWORD>(headerBlock.size()),
+        WinHttpAddRequestHeaders(handle.Get(), headerBlock.c_str(), headerBlock.size(),
                                  WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE);
     }
 
-    const DWORD bodyLength = static_cast<DWORD>(request.body.size());
+    const DWORD bodyLength = request.body.size();
     // WinHttpSendRequest takes a non-const body pointer although it does not modify it.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast) - WinHTTP API takes LPVOID
     LPVOID bodyPointer = request.body.empty() ? WINHTTP_NO_REQUEST_DATA : const_cast<uint8_t*>(request.body.data());

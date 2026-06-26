@@ -28,6 +28,6 @@ static_assert(sizeof(GameStructInfo) == 0x25D, "GameStructInfo must be 0x25D byt
 }  // namespace d2bs::imports::extras
 
 namespace d2bs::game {
-using ::d2bs::imports::extras::GameStructInfo;
+using imports::extras::GameStructInfo;
 }  // namespace d2bs::game
 // NOLINTEND(readability-identifier-naming)

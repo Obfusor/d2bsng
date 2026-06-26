@@ -6,7 +6,6 @@
 // #define D2BSNG_HANG_ON_CRASH 1
 
 #include <atlconv.h>
-#include <intrin.h>
 #include <array>
 #include <cstdint>
 #include <string>
@@ -91,7 +90,7 @@ std::string GetThreadDescription(uint32_t threadId) {
     auto result = ::GetThreadDescription(handle, &threadName);
     CloseHandle(handle);
     if (SUCCEEDED(result)) {
-        auto str = d2bs::utils::ToStr(threadName);
+        auto str = utils::ToStr(threadName);
         LocalFree(threadName);
         return str;
     }
@@ -158,7 +157,7 @@ std::filesystem::path ComputeCrashLogPath() {
     if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                            reinterpret_cast<LPCWSTR>(&ComputeCrashLogPath), &dllModule)) {
         std::array<wchar_t, MAX_PATH> dllPath{};
-        auto len = GetModuleFileNameW(dllModule, dllPath.data(), static_cast<DWORD>(dllPath.size()));
+        auto len = GetModuleFileNameW(dllModule, dllPath.data(), dllPath.size());
         if (len > 0 && len < dllPath.size()) {
             dir = std::filesystem::path(dllPath.data()).parent_path();
         }
@@ -168,7 +167,7 @@ std::filesystem::path ComputeCrashLogPath() {
     // failed (shouldn't happen in practice).
     if (dir.empty()) {
         std::array<wchar_t, MAX_PATH> exePath{};
-        auto len = GetModuleFileNameW(nullptr, exePath.data(), static_cast<DWORD>(exePath.size()));
+        auto len = GetModuleFileNameW(nullptr, exePath.data(), exePath.size());
         if (len > 0 && len < exePath.size()) {
             dir = std::filesystem::path(exePath.data()).parent_path();
         }
@@ -192,7 +191,7 @@ std::filesystem::path WriteCrashLog(std::string_view content) {
         return {};
     }
     DWORD written = 0;
-    WriteFile(h, content.data(), static_cast<DWORD>(content.size()), &written, nullptr);
+    WriteFile(h, content.data(), content.size(), &written, nullptr);
     FlushFileBuffers(h);
     CloseHandle(h);
     return path;

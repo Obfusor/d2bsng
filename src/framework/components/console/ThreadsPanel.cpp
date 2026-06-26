@@ -20,12 +20,12 @@ struct ThreadEntry {
 };
 
 [[nodiscard]] std::vector<ThreadEntry> EnumerateThreads() {
-    auto tids = d2bs::thread_utils::EnumerateProcessThreads();
+    auto tids = thread_utils::EnumerateProcessThreads();
     std::ranges::sort(tids);
     std::vector<ThreadEntry> result;
     result.reserve(tids.size());
     for (uint32_t tid : tids) {
-        result.push_back({.tid = tid, .description = d2bs::thread_utils::GetThreadDescription(tid)});
+        result.push_back({.tid = tid, .description = thread_utils::GetThreadDescription(tid)});
     }
     return result;
 }
@@ -73,7 +73,7 @@ void ThreadsPanel::Draw() {
     if (ImGui::Button("Capture")) {
         capturedTid_ = selected->tid;
         capturedDescription_ = selected->description;
-        capturedStack_ = d2bs::thread_utils::GetThreadStacktrace(selected->tid, 0);
+        capturedStack_ = thread_utils::GetThreadStacktrace(selected->tid, 0);
     }
     ImGui::EndDisabled();
 

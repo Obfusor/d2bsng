@@ -34,7 +34,7 @@ struct D2ActiveRoomStrc {
     std::array<uint32_t, 3> _1;                 // 0x04 - opaque (reference Room1._1[3])
     D2DrlgRoomStrc* pDrlgRoom;                  // 0x10 - reference Room1::pRoom2
     std::array<uint32_t, 3> _2;                 // 0x14 - opaque (reference Room1._2[3])
-    ::D2RoomCollisionGridStrc* pCollisionGrid;  // 0x20 - reference Room1::Coll (CollMap*)
+    D2RoomCollisionGridStrc* pCollisionGrid;  // 0x20 - reference Room1::Coll (CollMap*)
     int32_t nNumRooms;                          // 0x24 - reference Room1::dwRoomsNear
     std::array<uint32_t, 9> _3;                 // 0x28 - opaque (reference Room1._3[9])
     int32_t dwXStart;                           // 0x4C - reference Room1::dwXStart
@@ -42,7 +42,7 @@ struct D2ActiveRoomStrc {
     int32_t dwXSize;                            // 0x54 - reference Room1::dwXSize
     int32_t dwYSize;                            // 0x58 - reference Room1::dwYSize
     std::array<uint32_t, 6> _4;                 // 0x5C - opaque (reference Room1._4[6])
-    ::D2UnitStrc* pUnitFirst;                   // 0x74 - reference Room1::pUnitFirst
+    D2UnitStrc* pUnitFirst;                   // 0x74 - reference Room1::pUnitFirst
     uint32_t _5;                                // 0x78 - opaque (reference Room1._5)
     D2ActiveRoomStrc* pRoomNext;                // 0x7C - reference Room1::pRoomNext
 };

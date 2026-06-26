@@ -34,17 +34,17 @@ void Framework::Initialize(HMODULE hModule) {
     // Early logger - SetupLogging() replaces it; any failure here is still reportable.
     logger_ = spdlog::default_logger();
     // Spawn init on a separate thread to avoid heavy work under the DLL loader lock.
-    initThread_ = std::jthread([hModule]() { Framework::DoInitialize(hModule); });
+    initThread_ = std::jthread([hModule]() { DoInitialize(hModule); });
 }
 
 void Framework::DoInitialize(HMODULE hModule) {
-    d2bs::thread_utils::SetThreadDescription("d2bs framework init");
+    thread_utils::SetThreadDescription("d2bs framework init");
     try {
         SetupPaths(hModule);
         SetupLogging();
 
         // Register crash handler early so any subsequent failure produces diagnostics
-        previousExceptionFilter_ = SetUnhandledExceptionFilter(d2bs::thread_utils::ExceptionHandler);
+        previousExceptionFilter_ = SetUnhandledExceptionFilter(thread_utils::ExceptionHandler);
 
         // VEH backstop: V8/Crashpad and Detours both install their own UEFs;
         // whichever runs last wins, so our SEH filter may never see the
@@ -52,13 +52,13 @@ void Framework::DoInitialize(HMODULE hModule) {
         // logs and propagates so existing dispatch is unaffected. Pass
         // first=1 so we run before any other VEHs that get registered later.
         vectoredExceptionHandle_ =
-            AddVectoredExceptionHandler(/*FirstHandler=*/1, &d2bs::thread_utils::VectoredExceptionHandler);
+            AddVectoredExceptionHandler(/*FirstHandler=*/1, &thread_utils::VectoredExceptionHandler);
 
         // Wire the crash hook: pop the console visible on crash. The
         // console's render thread is independent of the game thread, so
         // the dump stays readable even if the game is hung in HANG_ON_CRASH
         // mode. utils/ can't depend on framework/game, hence the indirection.
-        d2bs::thread_utils::onCrashFunction.store(&game::console::Show, std::memory_order_release);
+        thread_utils::onCrashFunction.store(&game::console::Show, std::memory_order_release);
 
         LoadConfig();
 
@@ -86,7 +86,7 @@ void Framework::DoInitialize(HMODULE hModule) {
 
         // Resolve launch-time profile. Reference: reference/d2bs/Helpers.cpp:80-105.
         if (auto launchProfile = game::GetLaunchProfile()) {
-            if (d2bs::profile::Switch(*launchProfile)) {
+            if (profile::Switch(*launchProfile)) {
                 logger_->info("Switched to profile '{}'", *launchProfile);
             } else {
                 logger_->warn("Profile '{}' not found", *launchProfile);
@@ -106,7 +106,7 @@ void Framework::DoInitialize(HMODULE hModule) {
                         break;
                     case dde::Transaction::Poke: {
                         auto name = std::string(data);
-                        if (d2bs::profile::Switch(name)) {
+                        if (profile::Switch(name)) {
                             spdlog::info("DDE profile switch: '{}'", name);
                         } else {
                             spdlog::warn("DDE profile switch failed for '{}' (profile does not exist)", name);
@@ -266,7 +266,7 @@ game::GameCallbacks Framework::BuildCallbacks() {
                 ScriptEngine::Instance().Evaluate(payload);
                 return;
             case game::IpcMode::SwitchProfile:
-                if (d2bs::profile::Switch(payload)) {
+                if (profile::Switch(payload)) {
                     spdlog::info("IPC profile switch: '{}'", payload);
                 } else {
                     spdlog::warn("IPC profile switch failed for '{}' (profile does not exist)", payload);

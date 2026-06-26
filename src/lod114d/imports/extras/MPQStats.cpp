@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <optional>
 #include <span>
 #include <string>
@@ -2566,6 +2565,7 @@ void ResolveTableBase(const TableInfo& info, const uint8_t** outBase, uint32_t* 
     }
 
     // Both modes: the located word is itself a pointer to the row array.
+    // ReSharper disable once CppRedundantCastExpression - clang-tidy needs the explicit void*
     std::memcpy(static_cast<void*>(outBase), tablePtrLoc, sizeof(*outBase));
     if (countPtrLoc != nullptr) {
         std::memcpy(outCount, countPtrLoc, sizeof(*outCount));
@@ -2603,17 +2603,17 @@ TxtValue ReadField(const uint8_t* record, const ColumnSchema& col) {
         case FieldKind::Byte: {
             uint8_t v = 0;
             std::memcpy(&v, fieldPtr, sizeof(v));
-            return static_cast<int64_t>(v);
+            return v;
         }
         case FieldKind::ByteSigned: {
             int8_t v = 0;
             std::memcpy(&v, fieldPtr, sizeof(v));
-            return static_cast<int64_t>(v);
+            return v;
         }
         case FieldKind::Word: {
             uint16_t v = 0;
             std::memcpy(&v, fieldPtr, sizeof(v));
-            return static_cast<int64_t>(v);
+            return v;
         }
         case FieldKind::WordSigned: {
             // NAME_TO_INDEX_2 / NAME_TO_WORD_2 columns: collapse the 0xFFFF
@@ -2629,7 +2629,7 @@ TxtValue ReadField(const uint8_t* record, const ColumnSchema& col) {
         case FieldKind::Dword: {
             uint32_t v = 0;
             std::memcpy(&v, fieldPtr, sizeof(v));
-            return static_cast<int64_t>(v);
+            return v;
         }
         case FieldKind::DwordSigned: {
             // Reference DATA_DWORD_2 / CALC_TO_DWORD / NAME_TO_DWORD / UNKNOWN_11
@@ -2638,13 +2638,13 @@ TxtValue ReadField(const uint8_t* record, const ColumnSchema& col) {
             // bit 31 but mods / scripts can.
             uint32_t v = 0;
             std::memcpy(&v, fieldPtr, sizeof(v));
-            return static_cast<int64_t>(static_cast<int32_t>(v));
+            return static_cast<int32_t>(v);
         }
         case FieldKind::Bit: {
             uint32_t v = 0;
             std::memcpy(&v, fieldPtr, sizeof(v));
             const uint32_t bit = col.bitOrLen & 31U;
-            return static_cast<int64_t>((v >> bit) & 1U);
+            return v >> bit & 1U;
         }
         case FieldKind::Ascii: {
             // Read up to bitOrLen bytes, stop at first nul, copy as std::string.

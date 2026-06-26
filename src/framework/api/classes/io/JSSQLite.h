@@ -2,12 +2,9 @@
 
 #include <sqlite3.h>
 #include <v8.h>
-#include <cstdint>
 #include <filesystem>
 #include <set>
-#include <string>
 #include "api/core/V8Class.h"
-#include "api/core/V8Convert.h"
 #include "api/core/V8Error.h"
 
 namespace d2bs::api::classes {

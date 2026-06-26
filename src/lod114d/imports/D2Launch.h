@@ -1,11 +1,10 @@
 #pragma once
 
+// ReSharper disable once CppUnusedIncludeDirective
 #include "D2MOOConfig.h"
 #include "ImportTypes.h"
 
 #include "extras/BnetData.h"
-
-#include <cstdint>
 
 // All offsets below are Game.exe-relative for 1.14d. Calling conventions
 // sourced from reference/d2bs/D2Ptrs.h.

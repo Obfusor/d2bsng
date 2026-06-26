@@ -59,7 +59,6 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <format>
 #include <span>
@@ -424,8 +423,8 @@ extern "C" HWND __stdcall CreateGameWindowWithTitle(DWORD exStyle, LPCSTR classN
                                                     HMENU menu, HINSTANCE instance, LPVOID param) {
     const auto& opts = game::GetLaunchOptions();
     const wchar_t* title = opts.windowTitle.empty() ? L"Diablo II" : opts.windowTitle.c_str();
-    const std::wstring wideClass = d2bs::utils::ToWStr(className == nullptr ? "" : className, CP_ACP);
-    return ::CreateWindowExW(exStyle, wideClass.c_str(), title, style, x, y, width, height, parent, menu, instance,
+    const std::wstring wideClass = utils::ToWStr(className == nullptr ? "" : className, CP_ACP);
+    return CreateWindowExW(exStyle, wideClass.c_str(), title, style, x, y, width, height, parent, menu, instance,
                              param);
 }
 
@@ -458,7 +457,7 @@ std::string ReadWindowTitle() {
         return {};
     }
     std::array<char, 128> buffer{};
-    const int len = ::GetWindowTextA(hwnd, buffer.data(), static_cast<int>(buffer.size()));
+    const int len = GetWindowTextA(hwnd, buffer.data(), buffer.size());
     if (len <= 0) {
         return {};
     }
@@ -487,7 +486,7 @@ extern "C" HANDLE __stdcall OpenPerInstanceBnetCache(LPCSTR /*fileName*/, DWORD 
         path /= std::format("bncache{}.dat", static_cast<uint32_t>(tick) % 0x2000U);
     }
 
-    return ::CreateFileA(path.string().c_str(), desiredAccess, shareMode, securityAttrs, creationDisposition,
+    return CreateFileA(path.string().c_str(), desiredAccess, shareMode, securityAttrs, creationDisposition,
                          flagsAndAttributes, templateFile);
 }
 
@@ -527,7 +526,7 @@ std::string PerInstanceTempKey() {
 // (the IAT call we replace) so the stack stays balanced; on any failure we
 // leave the stock %TEMP% path GetTempPathA already wrote.
 extern "C" DWORD __stdcall GetTempPathPerInstance(DWORD nBufferLength, LPSTR lpBuffer) {
-    const DWORD baseLen = ::GetTempPathA(nBufferLength, lpBuffer);
+    const DWORD baseLen = GetTempPathA(nBufferLength, lpBuffer);
     if (baseLen == 0 || lpBuffer == nullptr) {
         return baseLen;
     }
@@ -537,8 +536,8 @@ extern "C" DWORD __stdcall GetTempPathPerInstance(DWORD nBufferLength, LPSTR lpB
             return baseLen;  // no room - keep the stock temp path
         }
         std::memcpy(lpBuffer, full.c_str(), full.size() + 1);
-        ::CreateDirectoryA(lpBuffer, nullptr);
-        return static_cast<DWORD>(full.size());
+        CreateDirectoryA(lpBuffer, nullptr);
+        return full.size();
     } catch (...) {
         // lpBuffer still holds the stock %TEMP% GetTempPathA wrote above.
         return baseLen;
@@ -557,8 +556,8 @@ extern "C" char __fastcall OnErrorReportLaunch(const char* crashFile, int /*a2*/
     // the logging pipeline is wedged.
     OutputDebugStringA("\n*** d2bsng OnErrorReportLaunch entered ***\n");
 
-    auto desc = d2bs::thread_utils::GetThreadDescription(0);
-    auto stack = d2bs::thread_utils::GetThreadStacktrace(0, 0);
+    auto desc = thread_utils::GetThreadDescription(0);
+    auto stack = thread_utils::GetThreadStacktrace(0, 0);
     auto dump = std::format("D2 ErrorReportLaunch fired (D2 is crashing)\n"
                             "crash file: {}\n"
                             "thread id: {:#x}\n"
@@ -566,7 +565,7 @@ extern "C" char __fastcall OnErrorReportLaunch(const char* crashFile, int /*a2*/
                             "stack:\n{}\n",
                             crashFile != nullptr ? crashFile : "<null>", GetCurrentThreadId(),
                             desc.empty() ? "" : std::format("thread description: {}\n", desc), stack);
-    d2bs::thread_utils::CrashAndExit(dump, 0xD2B50003);
+    thread_utils::CrashAndExit(dump, 0xD2B50003);
 }
 
 // =============================================================================

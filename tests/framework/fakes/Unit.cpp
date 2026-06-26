@@ -13,7 +13,7 @@ namespace d2bs::game {
 // seeded, matching the real Unit contract ("resolvable handle == truthy").
 // The pointer is never dereferenced - the fake accessors read from test State.
 void* Unit::ResolvePtr() const {
-    if (!d2bs::test::State().playerId.has_value()) {
+    if (!test::State().playerId.has_value()) {
         return nullptr;
     }
     return reinterpret_cast<void*>(static_cast<uintptr_t>(0x1));
@@ -24,19 +24,19 @@ Unit Unit::Player() {
 }
 
 uint32_t Unit::Id() const {
-    return d2bs::test::State().playerId.value_or(0);
+    return test::State().playerId.value_or(0);
 }
 
 uint32_t Unit::Hp() const {
-    return d2bs::test::State().hp.value_or(0);
+    return test::State().hp.value_or(0);
 }
 
 uint32_t Unit::Mp() const {
-    return d2bs::test::State().mp.value_or(0);
+    return test::State().mp.value_or(0);
 }
 
 uint32_t Unit::Area() const {
-    return d2bs::test::State().areaId;
+    return test::State().areaId;
 }
 
 }  // namespace d2bs::game

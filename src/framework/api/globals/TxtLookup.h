@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -13,11 +12,11 @@ namespace d2bs::api::globals {
 
 // Table index -> canonical .txt table name. nullopt if out of range.
 constexpr std::optional<std::string_view> ResolveTxtTable(uint32_t tableIdx) {
-    if (tableIdx >= d2bs::game::TXT_TABLE_NAMES.size()) {
+    if (tableIdx >= game::TXT_TABLE_NAMES.size()) {
         return std::nullopt;
     }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index) - runtime table index, bounds checked above
-    return d2bs::game::TXT_TABLE_NAMES[tableIdx];
+    return game::TXT_TABLE_NAMES[tableIdx];
 }
 
 // (Table name, column index) -> canonical column name.
@@ -26,11 +25,11 @@ constexpr std::optional<std::string_view> ResolveTxtTable(uint32_t tableIdx) {
 // so only the caller-supplied name needs to be lowered.
 // nullopt if the table name is unknown or the column index is out of range for that table.
 inline std::optional<std::string_view> ResolveTxtColumn(std::string_view tableName, uint32_t colIdx) {
-    std::string lowered = d2bs::utils::ToLower(std::string(tableName));
+    std::string lowered = utils::ToLower(std::string(tableName));
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index) - parallel-array lookup by runtime name match
-    for (size_t i = 0; i < d2bs::game::TXT_TABLE_NAMES.size(); ++i) {
-        if (d2bs::game::TXT_TABLE_NAMES[i] == lowered) {
-            const auto& cols = d2bs::game::TXT_COLUMNS_BY_TABLE[i];
+    for (size_t i = 0; i < game::TXT_TABLE_NAMES.size(); ++i) {
+        if (game::TXT_TABLE_NAMES[i] == lowered) {
+            const auto& cols = game::TXT_COLUMNS_BY_TABLE[i];
             if (colIdx >= cols.size()) {
                 return std::nullopt;
             }
@@ -45,11 +44,11 @@ inline std::optional<std::string_view> ResolveTxtColumn(std::string_view tableNa
 // unknown. Case-insensitive name match (as ResolveTxtColumn). Backs the
 // TxtTables.columns()/row() bindings and the getBaseStat whole-row form.
 inline std::optional<std::span<const std::string_view>> ResolveTxtColumns(std::string_view tableName) {
-    std::string lowered = d2bs::utils::ToLower(std::string(tableName));
+    std::string lowered = utils::ToLower(std::string(tableName));
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index) - parallel-array lookup by runtime name match
-    for (size_t i = 0; i < d2bs::game::TXT_TABLE_NAMES.size(); ++i) {
-        if (d2bs::game::TXT_TABLE_NAMES[i] == lowered) {
-            return d2bs::game::TXT_COLUMNS_BY_TABLE[i];
+    for (size_t i = 0; i < game::TXT_TABLE_NAMES.size(); ++i) {
+        if (game::TXT_TABLE_NAMES[i] == lowered) {
+            return game::TXT_COLUMNS_BY_TABLE[i];
         }
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)

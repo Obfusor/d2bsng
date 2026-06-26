@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 // Inline JMP / CALL patcher for mid-function patch points the game's

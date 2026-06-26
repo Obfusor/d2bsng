@@ -86,7 +86,7 @@ class MyStackWalker : StackWalker {
             // ShowCallstack copies the context internally, so the const_cast
             // is safe - StackWalker just declares it non-const.
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-            ShowCallstack(thread, const_cast<CONTEXT *>(context));
+            ShowCallstack(thread, context);
         } else {
             ShowCallstack(thread);
         }
