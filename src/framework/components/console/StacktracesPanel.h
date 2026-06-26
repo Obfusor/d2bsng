@@ -14,12 +14,11 @@ class Script;
 
 namespace d2bs::framework::console {
 
-// JS call stacks per script. Capture is opt-in: pick a script from the
-// combo and that script's Script::SetStackCaptureEnabled(true) flag flips
-// on. From then on, every JS->native callback (via NativeCallHook
-// trampolines) plus every delay() yield refreshes the script's cached
-// stack. Selecting a different script disables capture on the previous
-// one so unselected scripts pay no overhead.
+// JS call stacks per script. Capture is opt-in: selecting a script raises its
+// Script::SetStackCaptureMode to OnYield (refresh at delay() yields) or, with
+// the checkbox, OnEveryCall (also on every JS->native callback). Unselected
+// scripts stay Off and pay nothing; deselecting or hiding the console drops the
+// mode back to Off.
 class StacktracesPanel : public Panel {
    public:
     [[nodiscard]] const char* Title() const override { return "Stacktraces"; }
@@ -31,11 +30,9 @@ class StacktracesPanel : public Panel {
     // value stays valid across script restarts and pointer reuse.
     uint32_t selectedTid_ = 0;
 
-    // When on, the V8Class trampolines refresh the selected script's
-    // stack snapshot on every native callback (Method / Property /
-    // StaticMethod / global fn). When off, the snapshot only refreshes
-    // at delay() yields - free, always running, but stale between yields.
-    // Off by default so unselected scripts cost nothing.
+    // Selected script's capture tier: on -> OnEveryCall (refresh on every native
+    // callback - live but costly), off -> OnYield (refresh only at delay()
+    // yields). Off by default.
     bool captureOnEveryCall_ = false;
 };
 

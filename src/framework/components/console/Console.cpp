@@ -15,6 +15,8 @@
 #include "components/console/SettingsPanel.h"
 #include "components/console/StacktracesPanel.h"
 #include "components/console/ThreadsPanel.h"
+#include "components/script/Script.h"
+#include "components/script/ScriptEngine.h"
 
 namespace d2bs::framework::console {
 
@@ -29,6 +31,7 @@ std::deque<d2bs::game::console::Message> pending;
 
 struct State {
     bool initialized = false;
+    bool visible = false;
     LogPanel* logPanel = nullptr;
     ConsolePanel* consolePanel = nullptr;
     std::vector<std::unique_ptr<Panel>> panels;
@@ -84,6 +87,20 @@ void DrawFrame() {
     State& state = GetState();
     Initialize(state);
     DrainQueue(state);
+
+    const bool visible = d2bs::game::console::IsVisible();
+    if (state.visible && !visible) {
+        // Console just hidden: stop all per-script stack capture so a script left
+        // selected in the Stacktraces panel doesn't keep walking its V8 stack at
+        // every delay(). The panel re-enables the selected script on show.
+        for (const auto& script : d2bs::ScriptEngine::Instance().GetAllScripts()) {
+            script->SetStackCaptureMode(d2bs::StackCaptureMode::Off);
+        }
+    }
+    state.visible = visible;
+    if (!visible) {
+        return;  // queue drained above; nothing to render while hidden
+    }
 
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->WorkPos);

@@ -7,7 +7,7 @@ namespace d2bs::framework::script {
 
 void OnNativeCall(v8::Isolate* isolate) {
     if (auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
-        script != nullptr && script->IsStackCaptureEnabled()) {
+        script != nullptr && script->GetStackCaptureMode() == d2bs::StackCaptureMode::OnEveryCall) {
         script->RefreshLastStackTrace();
     }
 }

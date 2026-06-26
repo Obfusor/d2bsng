@@ -4,13 +4,13 @@
 
 namespace d2bs::framework::console {
 
-// One-per-frame draw call. The host (port-side) invokes this between
-// ImGui::NewFrame and ImGui::Render. Opens a full-viewport root window,
-// draws the tab bar with every registered panel, and pins a REPL input
-// field to the bottom. Lazy-inits the panel registry on first call;
-// drains the cross-thread message queue into LogPanel on each call.
-//
-// Caller must have an ImGui context active and a render-target bound.
+// One-per-frame draw call. Always drains the cross-thread message queue, then
+// renders the tab bar and panels only while the console is visible (queried via
+// game::console::IsVisible). On the visible->hidden edge it clears every script's
+// stack capture - a script left selected in the Stacktraces panel would otherwise
+// keep walking its V8 stack at every delay(); the panel re-enables the selected
+// script on show. The host (port-side) invokes this between ImGui::NewFrame and
+// ImGui::Render with an ImGui context active.
 void DrawFrame();
 
 // Any-thread message intake. Routed from each port's

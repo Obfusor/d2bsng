@@ -98,10 +98,13 @@ void OnMessage(const Message& msg);
 
 // Console visibility (for showConsole() / hideConsole() JS globals and
 // the framework's VK_HOME hotkey). A port with no distinct overlay concept
-// may no-op these.
+// may no-op Show/Hide/Toggle and return false from IsVisible.
 void Show();
 void Hide();
 void Toggle();
+// Whether the console overlay is currently shown. The framework gates per-frame
+// work on this (e.g. it stops stack capture while the console is hidden).
+bool IsVisible();
 
 // ---------------------------------------------------------------------------
 // Implemented by the framework (inline), callable by the port

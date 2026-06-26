@@ -191,11 +191,13 @@ void RegisterCoreFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
             uint32_t ms = std::max(v8_convert::ToUint32(isolate, args[0]), 1U);
             auto* script = d2bs::ScriptEngine::Instance().GetScript(isolate);
             if (script) {
-                // Snapshot the JS stack right where the script chose to yield -
-                // the console's Stacks panel reads this cache. We're on the
-                // script's own thread here (V8 callback context), so the
-                // capture runs synchronously with no interrupt.
-                script->RefreshLastStackTrace();
+                // Snapshot the JS stack at this yield only when the console's
+                // Stacktraces panel has this script selected (mode != Off) -
+                // otherwise it's a full stack walk on every delay(). On the
+                // script's own thread here, so it's synchronous, no interrupt.
+                if (script->GetStackCaptureMode() != d2bs::StackCaptureMode::Off) {
+                    script->RefreshLastStackTrace();
+                }
                 script->ExecuteEvents(std::chrono::milliseconds(ms));
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(ms));

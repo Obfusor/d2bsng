@@ -92,17 +92,15 @@ void StacktracesPanel::Draw() {
     ImGui::TextUnformatted("Script:");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(220.0F);
-    // Invariant: at most one script has captureOnEveryCall flipped on at
-    // any time - whichever is currently `selected`. Both branches below
-    // that change selection clear the previous script's flag before
-    // reassigning, so deselecting / reselecting can't leak capture cost
-    // onto a script the user has navigated away from. The (now-stopped)
-    // case in the `selected == nullptr` block above leaves the flag set
-    // on a dead script, which is harmless - the script isn't running.
+    // Invariant: at most one script has capture enabled (OnYield/OnEveryCall) at
+    // any time - whichever is `selected`. Both selection-changing branches below
+    // clear the previous script's mode before reassigning, so navigating away
+    // can't leak capture cost. A script that stops while selected keeps its mode
+    // (harmless - it isn't running); console hide also clears all capture.
     if (ImGui::BeginCombo("##script", previewLabel.c_str())) {
         if (ImGui::Selectable("(none)", selectedTid_ == 0)) {
             if (selected != nullptr) {
-                selected->SetStackCaptureEnabled(false);
+                selected->SetStackCaptureMode(d2bs::StackCaptureMode::Off);
             }
             selectedTid_ = 0;
             selected.reset();
@@ -116,7 +114,7 @@ void StacktracesPanel::Draw() {
             const std::string label = fmt::format("{} [{}]##{}", s->GetName(), magic_enum::enum_name(s->GetState()), i);
             if (ImGui::Selectable(label.c_str(), tid == selectedTid_ && selected.get() == s.get())) {
                 if (selected != nullptr && selected.get() != s.get()) {
-                    selected->SetStackCaptureEnabled(false);
+                    selected->SetStackCaptureMode(d2bs::StackCaptureMode::Off);
                 }
                 selectedTid_ = tid;
                 selected = s;
@@ -127,29 +125,29 @@ void StacktracesPanel::Draw() {
 
     ImGui::SameLine();
     if (ImGui::Checkbox("Capture every native call", &captureOnEveryCall_)) {
-        // Toggling only touches the selected script. The unselected ones
-        // already have their flag cleared by the combo logic above, so
-        // there's nothing to flip off here.
+        // Toggling only touches the selected script; unselected ones are already Off.
         if (selected != nullptr) {
-            selected->SetStackCaptureEnabled(captureOnEveryCall_);
+            selected->SetStackCaptureMode(captureOnEveryCall_ ? d2bs::StackCaptureMode::OnEveryCall
+                                                              : d2bs::StackCaptureMode::OnYield);
         }
     }
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Off: the panel shows whatever the script captured at its last delay() yield (free).\n"
-                          "On: every JS->native callback also refreshes the snapshot - live, but adds a stack-walk\n"
-                          "to every method / property / function call from this script.");
+        ImGui::SetTooltip("Off: refresh the snapshot at this script's delay() yields (cheap).\n"
+                          "On: also refresh on every JS->native callback - live, but adds a stack-walk to\n"
+                          "every method / property / function call from this script.");
     }
 
     if (selected == nullptr) {
         ImGui::Spacing();
-        ImGui::TextDisabled("Pick a script to view its JS call stack. The delay()-time snapshot is free;");
-        ImGui::TextDisabled("flip the checkbox above for a live every-native-call view.");
+        ImGui::TextDisabled("Pick a script to view its JS call stack - it captures at delay() yields while");
+        ImGui::TextDisabled("selected; flip the checkbox above for a live every-native-call view.");
         return;
     }
 
-    // Keep the capture flag in sync each frame - handles tabbing away and
-    // back, and ensures unselected scripts always have it cleared.
-    selected->SetStackCaptureEnabled(captureOnEveryCall_);
+    // Re-assert the selected script's capture tier each frame (handles the
+    // checkbox toggle and reselection).
+    selected->SetStackCaptureMode(captureOnEveryCall_ ? d2bs::StackCaptureMode::OnEveryCall
+                                                      : d2bs::StackCaptureMode::OnYield);
 
     if (const auto snapshot = selected->GetLastStackTrace(); snapshot != nullptr) {
         DrawStackTable(snapshot->frames);

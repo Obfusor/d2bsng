@@ -25,4 +25,8 @@ void Toggle() {
     d2bs::console::Toggle();
 }
 
+bool IsVisible() {
+    return d2bs::console::IsVisible();
+}
+
 }  // namespace d2bs::game::console

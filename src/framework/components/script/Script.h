@@ -41,10 +41,20 @@ struct StackFrame {
 };
 
 // Captured JS call stack of a script's isolate. Produced by
-// Script::RefreshLastStackTrace (delay() hook + force-refresh interrupt);
+// Script::RefreshLastStackTrace (see StackCaptureMode for when);
 // read cross-thread via Script::GetLastStackTrace.
 struct StackTraceSnapshot {
     std::vector<StackFrame> frames;
+};
+
+// How often a script refreshes its cached JS stack (StackTraceSnapshot). Off by
+// default - capture is opt-in via the console's Stacktraces panel, which raises
+// the selected script to OnYield or OnEveryCall and drops it back to Off on
+// deselect or when the console is hidden.
+enum class StackCaptureMode : uint8_t {
+    Off,          // never walk the stack (zero cost)
+    OnYield,      // refresh at delay() yields only
+    OnEveryCall,  // also refresh on every JS->native callback
 };
 
 class Script : public std::enable_shared_from_this<Script> {
@@ -110,23 +120,22 @@ class Script : public std::enable_shared_from_this<Script> {
     // Force a fresh snapshot - only safe from the script's own thread.
     void UpdateHeapStats(bool force = false);
 
-    // Last-known JS call stack. Captured automatically at every delay()
-    // yield (so the cache stays fresh during normal script execution).
+    // Last-known JS call stack, refreshed per StackCaptureMode (Off by default,
+    // so nothing is captured unless the Stacktraces panel selected this script).
     // Callable from any thread.
     [[nodiscard]] std::shared_ptr<StackTraceSnapshot> GetLastStackTrace() const { return lastStackTrace_.load(); }
     // Walk this script's V8 stack and replace the cache. Owner-thread only -
-    // invoked from inside JS->native callbacks (delay()) or from a
-    // v8::Isolate::RequestInterrupt callback.
+    // invoked from delay() and the JS->native trampolines per StackCaptureMode.
     void RefreshLastStackTrace(int32_t maxFrames = 64);
 
-    // When true, every JS->native callback (Method / Property / StaticMethod /
-    // V8Function::Register) triggers RefreshLastStackTrace via the
-    // NativeCallHook trampolines, so the cache reflects the script's most
-    // recent native call instead of just the last delay() yield. Off by
-    // default; the console's Stacktraces panel toggles it when a
-    // script is selected/deselected. Cross-thread safe.
-    void SetStackCaptureEnabled(bool enabled) { stackCaptureEnabled_.store(enabled, std::memory_order_release); }
-    [[nodiscard]] bool IsStackCaptureEnabled() const { return stackCaptureEnabled_.load(std::memory_order_acquire); }
+    // Controls how often RefreshLastStackTrace runs (see StackCaptureMode). Off
+    // by default; the console's Stacktraces panel raises the selected script to
+    // OnYield / OnEveryCall and drops it to Off on deselect or console hide.
+    // Cross-thread safe.
+    void SetStackCaptureMode(StackCaptureMode mode) { stackCaptureMode_.store(mode, std::memory_order_release); }
+    [[nodiscard]] StackCaptureMode GetStackCaptureMode() const {
+        return stackCaptureMode_.load(std::memory_order_acquire);
+    }
 
     // Ask V8 to garbage-collect this script's isolate. Safe to call from
     // any thread. From the script's own thread (e.g. TeardownIsolate) the
@@ -229,7 +238,7 @@ class Script : public std::enable_shared_from_this<Script> {
     std::atomic<std::shared_ptr<v8::HeapStatistics>> cachedHeapStats_;
     std::chrono::steady_clock::time_point lastHeapStatsUpdate_;
     std::atomic<std::shared_ptr<StackTraceSnapshot>> lastStackTrace_;
-    std::atomic<bool> stackCaptureEnabled_{false};
+    std::atomic<StackCaptureMode> stackCaptureMode_{StackCaptureMode::Off};
     std::atomic<uint32_t> nativeThreadId_{0};
 
     // Event registry

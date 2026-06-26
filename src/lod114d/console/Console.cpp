@@ -399,6 +399,11 @@ void Hide() {
     }
 }
 
+bool IsVisible() {
+    const HWND h = consoleHwnd.load(std::memory_order_acquire);
+    return h != nullptr && IsWindowVisible(h) != FALSE;
+}
+
 void Toggle() {
     HWND h = consoleHwnd.load(std::memory_order_acquire);
     if (h == nullptr) {

@@ -10,4 +10,7 @@ void Show();
 void Hide();
 void Toggle();
 
+// Whether the host window is currently shown (false before Init()).
+bool IsVisible();
+
 }  // namespace d2bs::console
