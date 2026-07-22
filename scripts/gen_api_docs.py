@@ -158,6 +158,9 @@ a:hover{text-decoration:underline}
 .grp-label{font-size:13px;font-weight:600;padding:4px 4px;flex:1;color:var(--fg);cursor:pointer}
 a.grp-link{color:var(--fg)}
 .grp-label .n{font-weight:400;color:var(--muted);font-size:11px}
+.cat{margin-top:10px}
+.cat:first-child{margin-top:0}
+.cat>.grp-row>.grp-label{text-transform:uppercase;letter-spacing:.05em;font-size:11px;font-weight:700;color:var(--muted)}
 .leaf>a{display:block;padding:3px 8px 3px 22px;font-size:13px;color:var(--muted);
   border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .leaf>a:hover{background:var(--accent-soft);color:var(--fg);text-decoration:none}
@@ -218,6 +221,9 @@ table.opt-tbl code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
 .member-foot{margin:4px 0 2px}
 .src{font-size:12px;color:var(--muted)}
 .src-plain{cursor:help}
+.lo-syntax{font-family:ui-monospace,monospace;color:var(--muted);font-size:15px;font-weight:400}
+.lo-meta{font-size:13px;color:var(--muted);margin:.2em 0}
+.lo-meta code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
 
 .badge{display:inline-block;font:600 11px/1.4 ui-monospace,monospace;border-radius:20px;padding:2px 8px;border:1px solid var(--border);color:var(--muted);background:var(--code-bg)}
 .badge-mode{color:var(--add);border-color:#1a7f3733}
@@ -439,6 +445,14 @@ function navSubgroup(anchor,label,leaves,childHtml){
     '<a class="grp-label grp-link" href="#'+esc(anchor)+'">'+esc(label)+n+'</a></div>'+
     '<ul class="kids">'+navLeaves(leaves)+(childHtml||'')+'</ul></li>';
 }
+// Top-level tree category (e.g. "JS API" vs "Others"). Rendered expanded
+// and exempt from the search filter's auto-collapse (see filter()), so its child
+// groups show at a glance while each stays individually collapsible.
+function navCategory(anchor,label,groups){
+  return '<li class="group cat"><div class="grp-row"><button class="tw" aria-label="toggle"></button>'+
+    '<a class="grp-label grp-link" href="#'+esc(anchor)+'">'+esc(label)+' <span class="n">'+groups.length+'</span></a></div>'+
+    '<ul class="kids">'+groups.join('')+'</ul></li>';
+}
 
 // ---- whole-API render ----
 function buildApi(data){
@@ -448,7 +462,7 @@ function buildApi(data){
   Object.keys(constants).forEach(function(c){ if(constants[c]&&constants[c].properties) TYPE_LINKS[c]=slug('const',c); });
   Object.keys(enums).forEach(function(en){ TYPE_LINKS[en]=slug('enum',en); });
 
-  var navHtml=[], body=[];
+  var navHtml=[], jsNav=[], loNav=[], body=[];
   var nM=0,nP=0,nS=0;
   Object.keys(classes).forEach(function(k){ nM+=classes[k].methods.length; nP+=classes[k].properties.length; nS+=classes[k].static_methods.length; });
   var stats=Object.keys(classes).length+' classes &middot; '+nM+' methods &middot; '+nP+' properties &middot; '+nS+' static &middot; '+globals.length+' global functions &middot; '+events.length+' events';
@@ -468,7 +482,7 @@ function buildApi(data){
     globSub.push(navSubgroup(ca,label,leaves));
   });
   body.push('</section>');
-  navHtml.push('<li class="group collapsed"><div class="grp-row"><button class="tw"></button><a class="grp-label grp-link" href="#globals">Global functions <span class="n">'+globals.length+'</span></a></div><ul class="kids">'+globSub.join('')+'</ul></li>');
+  jsNav.push('<li class="group collapsed"><div class="grp-row"><button class="tw"></button><a class="grp-label grp-link" href="#globals">Global functions <span class="n">'+globals.length+'</span></a></div><ul class="kids">'+globSub.join('')+'</ul></li>');
 
   // classes
   body.push('<section class="area"><h2 id="classes" class="spy">Classes</h2><p class="area-intro">Object types exposed to scripts. A class marked <em>not constructable</em> is only ever returned by the API.</p>');
@@ -491,7 +505,7 @@ function buildApi(data){
     clsSub.push(navSubgroup(canchor,name,leaves));
   });
   body.push('</section>');
-  navHtml.push('<li class="group collapsed"><div class="grp-row"><button class="tw"></button><a class="grp-label grp-link" href="#classes">Classes <span class="n">'+Object.keys(classes).length+'</span></a></div><ul class="kids">'+clsSub.join('')+'</ul></li>');
+  jsNav.push('<li class="group collapsed"><div class="grp-row"><button class="tw"></button><a class="grp-label grp-link" href="#classes">Classes <span class="n">'+Object.keys(classes).length+'</span></a></div><ul class="kids">'+clsSub.join('')+'</ul></li>');
 
   // me (the player Unit, plus session-level extras)
   var meExt=data.me_extends;
@@ -503,7 +517,7 @@ function buildApi(data){
   me.slice().sort(byName).forEach(function(p){ var a=slug('me',p.name); body.push(renderProperty(p,a)); meLeaves.push([a,p.name,hay(p.name,(p.doc||{}).description)]); });
   if(meExt) body.push(renderInherited(meExt, classes));
   body.push('</section>');
-  navHtml.push(navGroup('me','me (player)',meLeaves));
+  jsNav.push(navGroup('me','me (player)',meLeaves));
 
   // constants
   body.push('<section class="area"><h2 id="constants" class="spy">Constants</h2>');
@@ -526,14 +540,14 @@ function buildApi(data){
   body.push('</section>');
   // nav for constants (handle nested 'raw' entries)
   var clItems=constLeaves.map(function(l){ return l[0]==='raw' ? l[1] : '<li class="leaf" data-hay="'+l[2]+'"><a href="#'+esc(l[0])+'">'+esc(l[1])+'</a></li>'; }).join('');
-  navHtml.push('<li class="group collapsed"><div class="grp-row"><button class="tw" aria-label="toggle"></button><a class="grp-label grp-link" href="#constants">Constants <span class="n">'+Object.keys(constants).length+'</span></a></div><ul class="kids">'+clItems+'</ul></li>');
+  jsNav.push('<li class="group collapsed"><div class="grp-row"><button class="tw" aria-label="toggle"></button><a class="grp-label grp-link" href="#constants">Constants <span class="n">'+Object.keys(constants).length+'</span></a></div><ul class="kids">'+clItems+'</ul></li>');
 
   // events
   body.push('<section class="area"><h2 id="events" class="spy">Events</h2><p class="area-intro">Names for <code>addEventListener(name, fn)</code>. A <em>blockable</em> event may return a value to suppress the default game handling.</p>');
   var evLeaves=[];
   events.slice().sort(byName).forEach(function(e){ var a=slug('event',e.name); body.push(renderEvent(e,a)); evLeaves.push([a,e.name,hay(e.name,e.description)]); });
   body.push('</section>');
-  navHtml.push(navGroup('events','Events',evLeaves));
+  jsNav.push(navGroup('events','Events',evLeaves));
 
   // enums (option sets referenced by typed properties / parameters)
   var enumNames=Object.keys(enums);
@@ -548,7 +562,7 @@ function buildApi(data){
       enLeaves.push([a,en,hayStr]);
     });
     body.push('</section>');
-    navHtml.push(navGroup('enums','Enums',enLeaves));
+    jsNav.push(navGroup('enums','Enums',enLeaves));
   }
 
   // data tables (Diablo II .txt schema behind getBaseStat)
@@ -568,9 +582,32 @@ function buildApi(data){
       tblLeaves.push([tid,t.name,hay(t.name,cols.join(' '))]);
     });
     body.push('</section>');
-    navHtml.push(navGroup('tables','Data tables',tblLeaves));
+    jsNav.push(navGroup('tables','Data tables',tblLeaves));
   }
 
+  // command line options (switches passed to the game executable) - grouped
+  // under "Others", after the JS API sections so body order matches the sidebar.
+  var launch=data.launch_options||[];
+  if(launch.length){
+    body.push('<section class="area"><h2 id="launch" class="spy">Command line options</h2>'+
+      '<p class="area-intro">Command-line switches passed to the game executable (typically by the launcher / bot manager). '+
+      'A switch shown with an argument (e.g. <code>-profile &lt;name&gt;</code>) takes the following token as its value.</p>');
+    var loLeaves=[];
+    launch.forEach(function(o){
+      var a=slug('launch',o.name);
+      var title='<span class="sym-name">'+esc(o.name)+'</span>'+(o.syntax?' <span class="lo-syntax">'+esc(o.syntax)+'</span>':'');
+      var h=head(3,a,title,(o.category?badge(o.category):''));
+      var body2=(o.description?'<p class="desc">'+esc(o.description)+'</p>':'');
+      body.push('<div class="member" data-hay="'+hay(o.name,o.description,o.syntax)+'">'+h+
+        '<div class="member-body">'+body2+'<div class="member-foot">'+sourceLink(o)+'</div></div></div>');
+      loLeaves.push([a,o.name,hay(o.name,o.description,o.syntax)]);
+    });
+    body.push('</section>');
+    loNav.push(navGroup('launch','Command line options',loLeaves));
+  }
+
+  navHtml.push(navCategory('top','JS API',jsNav));
+  if(loNav.length) navHtml.push(navCategory('launch','Others',loNav));
   nav.innerHTML=navHtml.join('');
   apiView.innerHTML=body.join('');
   initInteractions();
@@ -602,6 +639,7 @@ function flatten(data){
     else out[cn]={label:cn, fp:(cv.doc||{}).type||'', anchor:slug('const',cn)};
   });
   (data.events||[]).forEach(function(e){ out['event '+e.name]={label:'event '+e.name, fp:(e.signature||'')+'|'+!!e.blockable, anchor:slug('event',e.name)}; });
+  (data.launch_options||[]).forEach(function(o){ out['option '+o.name]={label:'option '+o.name, fp:(o.syntax||'')+'|'+(o.description||''), anchor:slug('launch',o.name)}; });
   return out;
 }
 function diffData(curr,prev){
@@ -701,7 +739,7 @@ function filter(){
     var selfHit=q&&(g.dataset.hay||'').indexOf(q)>=0;
     var vis=g.querySelector('.leaf:not([hidden])')||g.querySelector('.group:not([hidden])');
     g.hidden=!(!q||!!vis||selfHit);
-    if(q){ if(vis||selfHit) g.classList.remove('collapsed'); } else g.classList.add('collapsed');
+    if(q){ if(vis||selfHit) g.classList.remove('collapsed'); } else if(!g.classList.contains('cat')) g.classList.add('collapsed');
   });
   noRes.hidden=!(q&&!any);
 }

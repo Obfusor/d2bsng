@@ -982,6 +982,12 @@ ENUM_SOURCES = [
 ]
 COMPAT_FLAGS_SOURCE = REPO_ROOT / "src" / "core" / "config" / "CompatibilityFlags.cpp"
 
+# The command-line option registry (the backend's option table). Parsed with
+# libclang for the docs' Launch options section, the same way the compat-flag
+# catalog is read: each documented builder.Add("-name", "<syntax>", ...) call
+# carries a preceding /// doc block.
+LAUNCH_OPTIONS_SOURCE = REPO_ROOT / "src" / "backends" / "lod114d" / "game" / "LaunchOptions.cpp"
+
 _INT_LITERAL_RE = re.compile(r"0[xX][0-9a-fA-F]+|\d+")
 
 
@@ -1110,6 +1116,68 @@ def extract_enums(result, flags):
     referenced = set()
     _collect_type_idents(result, referenced)
     return {name: d for name, d in defs.items() if name in referenced}
+
+
+def _parse_launch_option_rows(tu, rel):
+    """Collect launch-option rows from the option registry's builder: the
+    documented ``builder.Add("-name", "<syntax>", ...)`` calls, read the same
+    way as RegisterDefaults' Register() calls. The switch name is the first
+    string arg, the argument syntax the second; the description / category come
+    from the preceding /// doc block."""
+    rows = []
+    for cur in tu.cursor.walk_preorder():
+        if (
+            cur.spelling == "BuildSpecs"
+            and cur.is_definition()
+            and cur.kind in (CursorKind.CXX_METHOD, CursorKind.FUNCTION_DECL)
+        ):
+            for call in cur.walk_preorder():
+                if call.kind == CursorKind.CALL_EXPR and callee_spelling(call) == "Add":
+                    name = nth_arg_string(call, 0)
+                    if not name:
+                        continue
+                    src = call.location.file
+                    doc = extract_doc_comment(Path(src.name), call.location.line) if src else {}
+                    row = {
+                        "name": name,
+                        "syntax": nth_arg_string(call, 1) or "",
+                        "description": (doc or {}).get("description", ""),
+                        "file": rel,
+                        "line": call.location.line,
+                    }
+                    if (doc or {}).get("category"):
+                        row["category"] = doc["category"]
+                    rows.append(row)
+    return rows
+
+
+def extract_launch_options(flags, path=LAUNCH_OPTIONS_SOURCE):
+    """Parse the command-line option registry with libclang and return the
+    ordered list of launch options for the docs' Launch options section."""
+    if not Path(path).exists():
+        return []
+    try:
+        rel = str(Path(path).relative_to(REPO_ROOT)).replace("\\", "/")
+    except ValueError:
+        rel = str(path)
+    # LaunchOptions.cpp is a backend TU; add its include root here rather than to
+    # the global frontend flag set (keeps it off every other parse).
+    backend = REPO_ROOT / "src" / "backends" / "lod114d"
+    args = flags + (["-I", str(backend)] if backend.exists() else [])
+    try:
+        index = Index.create()
+        tu = index.parse(
+            str(path),
+            args=args,
+            options=TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD | TranslationUnit.PARSE_INCOMPLETE,
+        )
+    except Exception:  # noqa: BLE001 - parse failure -> no options, not fatal
+        print(f"warning: could not parse launch options from {rel}", file=sys.stderr)
+        return []
+    rows = _parse_launch_option_rows(tu, rel)
+    if not rows:
+        print(f"warning: no launch options parsed from {rel} (option registry renamed?)", file=sys.stderr)
+    return rows
 
 
 def _find_string_literal(cur, depth=8):
@@ -1348,6 +1416,9 @@ def main():
     # after the result is assembled so referenced-type filtering can see all docs.
     result["enums"] = extract_enums(result, flags)
 
+    # Command-line switches (the backend's option registry).
+    result["launch_options"] = extract_launch_options(flags)
+
     drawable_base = extract_drawable_base()
     if drawable_base and "DrawableBase" not in result["classes"]:
         result["classes"]["DrawableBase"] = drawable_base
@@ -1365,11 +1436,12 @@ def main():
     )
     nev = len(result.get("events", []))
     nen = len(result.get("enums", {}))
+    nlo = len(result.get("launch_options", []))
     print(
         f"Found: {nc} classes ({nm} methods, {np} properties, {ns} static, "
         f"{nctor} constructors, {nnoctor} non-constructable), "
         f"{ng} global functions, {nk} constants, {nme} 'me' properties, "
-        f"{nev} events, {nen} enums",
+        f"{nev} events, {nen} enums, {nlo} launch options",
         file=sys.stderr,
     )
 

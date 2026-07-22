@@ -29,7 +29,7 @@ realms are added on the command line, not from scripts.
 ## Command line
 
 ```
--realm name:host             # repeatable; --realm is also accepted
+-realm name:host             # repeatable
 ```
 
 The client always dials a server on the fixed BNCS port 6112 (as real
