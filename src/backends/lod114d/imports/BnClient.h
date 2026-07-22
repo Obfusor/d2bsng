@@ -3,6 +3,7 @@
 // ReSharper disable once CppUnusedIncludeDirective
 #include "D2MOOConfig.h"
 #include "ImportTypes.h"
+#include "extras/BNGatewayAccess.h"
 
 // All offsets below are Game.exe-relative for 1.14d. Calling conventions
 // sourced from reference/d2bs/D2Ptrs.h.
@@ -11,6 +12,9 @@
 namespace d2bs::imports::bnclient {
 
 // ---- Variables -------------------------------------------------------------
+// The client's parsed gateway list singleton (BNGatewayAccess). Read to
+// enumerate realms from the live in-memory list; see the realms hook (hooks/Realms).
+inline GameVar<extras::BNGatewayAccessState> gBNGatewayAccess{0x481838};
 inline GameVar<char*> gpszClassicCdKey{0x482744};
 inline GameVar<char*> gpszExpansionCdKey{0x48274C};
 inline GameVar<char*> gpszKeyOwner{0x482750};

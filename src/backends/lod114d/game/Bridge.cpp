@@ -2,6 +2,7 @@
 
 #include "asm_thunks/asm_thunks.h"
 #include "hooks/Intercepts.h"
+#include "hooks/Realms.h"
 #include "imports/ImportTypes.h"
 
 // Each include instantiates its inline GameFunc/GameVar/GameAsmFunc objects in this TU; their constructors
@@ -49,6 +50,10 @@ bool Bridge::Init() {
         // hooks::intercepts::Init already showed its own MessageBox.
         return false;
     }
+
+    // Seed RealmRegistry from any -realm launch options before scripts run. The
+    // registry detours that inject them are installed later, from HookManager.
+    hooks::realms::Init();
 
     initSucceeded.store(true, std::memory_order_release);
     return true;

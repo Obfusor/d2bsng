@@ -71,6 +71,11 @@ void Parse(LaunchOptions& out) {
             if (!value.empty()) {
                 out.proxy = utils::ToStr(std::wstring{value}, CP_UTF8);
             }
+        } else if (token == L"-realm" || token == L"--realm") {
+            const auto value = nextValue();
+            if (!value.empty()) {
+                out.realms.push_back(utils::ToStr(std::wstring{value}, CP_UTF8));
+            }
         }
     }
 

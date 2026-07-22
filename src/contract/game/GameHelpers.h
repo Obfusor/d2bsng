@@ -221,4 +221,17 @@ void LoadMpq(const std::string& path);
 // registry, or IPC. Returns nullopt when no launch profile is requested.
 std::optional<std::string> GetLaunchProfile();
 
+// === Realms ===
+// A Battle.net realm/gateway the client can connect to: a display name and a
+// server host (hostname or IP). D2 dials gateways on the fixed BNCS port 6112.
+struct RealmInfo {
+    std::string name;
+    std::string host;
+};
+
+// Enumerate the realms the client can connect to: D2's own gateway list plus
+// any added via the `-realm` launch option. Read-only; ordering is D2's
+// gateways first, then the -realm additions.
+std::vector<RealmInfo> GetRealms();
+
 }  // namespace d2bs::game

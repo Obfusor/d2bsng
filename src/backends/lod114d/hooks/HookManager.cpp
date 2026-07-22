@@ -13,6 +13,7 @@
 #include "console/Console.h"
 #include "game/GameThread.h"
 #include "hooks/Intercepts.h"
+#include "hooks/Realms.h"
 #include "hooks/Socks5Proxy.h"
 #include "imports/D2Gfx.h"
 #include "speedhack/Speedhack.h"
@@ -89,12 +90,15 @@ BOOL __fastcall NoOpCursorLock(int /*X*/, int /*Y*/) {
 // steady_clock - already scaled via QPC. Reentrant Sleep relies on the inner
 // loop wrapping its sleep_for in SpeedhackDisabledScope to get real-ms slicing.
 VOID WINAPI HookedSleep(DWORD ms) {
-    // Foreign threads (e.g. a staged loader DLL's workers) may lack this
-    // module's TLS; the thread_locals below (inSleepCallback, and the
-    // speedhack's waitChainDepth / threadOptIn via NestedWaitGuard /
-    // ScaleTimeout) would access-violate. Pass straight through to the real
-    // Sleep - no scaling, no onSleep drive.
-    if (!thread_utils::HasThreadLocalStorage()) {
+    // Two fast bailouts straight to the real Sleep (no scaling, no onSleep drive):
+    //   - ms == 0 is a bare thread yield, not a real sleep. Running it through
+    //     onSleep's frame drain turns a cheap yield into real work, so a game
+    //     that spams Sleep(0) burns a lot of CPU. Just yield.
+    //   - Foreign threads (e.g. a staged loader DLL's workers) may lack this
+    //     module's TLS; the thread_locals below (inSleepCallback, and the
+    //     speedhack's waitChainDepth / threadOptIn via NestedWaitGuard /
+    //     ScaleTimeout) would access-violate.
+    if (ms < 1 || !thread_utils::HasThreadLocalStorage()) {
         realSleep(ms);
         return;
     }
@@ -319,9 +323,14 @@ void InstallDetoursHooks() {
     // in its own transaction, independent of the ones above. No-op unless launched
     // with -proxy.
     socks5::Install();
+
+    // Inject framework realms into D2's in-memory server list (detours the Storm
+    // registry read/write helpers). Must precede the client's first list read.
+    realms::Install();
 }
 
 void RemoveDetoursHooks() {
+    realms::Remove();
     socks5::Remove();
     speedhack::Remove();
 

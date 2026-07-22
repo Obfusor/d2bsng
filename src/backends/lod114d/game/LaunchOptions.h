@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace d2bs::game {
 
@@ -24,6 +25,8 @@ struct LaunchOptions {
     bool randomizeBnetCache = false;  // -cachefix
 
     std::optional<std::string> proxy;  // -proxy socks5://[user:password@]host:port
+
+    std::vector<std::string> realms;  // -realm name:host (repeatable); raw specs, parsed into RealmRegistry
 };
 
 // Parse GetCommandLineW() once and return a stable reference. Safe to call

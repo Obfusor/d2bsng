@@ -109,6 +109,7 @@
     <ClCompile Include="hooks\HookManager.cpp" />
     <ClCompile Include="hooks\InlinePatch.cpp" />
     <ClCompile Include="hooks\Intercepts.cpp" />
+    <ClCompile Include="hooks\Realms.cpp" />
     <ClCompile Include="hooks\Socks5Proxy.cpp" />
     <!-- Console host (window + GL + ImGui glue; UI lives in the js frontend) -->
     <ClCompile Include="console\Console.cpp">
@@ -133,6 +134,7 @@
     <ClInclude Include="imports\D2Launch.h" />
     <ClInclude Include="imports\BnClient.h" />
     <ClInclude Include="imports\Storm.h" />
+    <ClInclude Include="imports\extras\BNGatewayAccess.h" />
     <ClInclude Include="imports\extras\BnetData.h" />
     <ClInclude Include="imports\extras\D2ActiveRoomStrc.h" />
     <ClInclude Include="imports\extras\D2DrlgActStrc.h" />
@@ -152,6 +154,7 @@
     <ClInclude Include="hooks\HookManager.h" />
     <ClInclude Include="hooks\InlinePatch.h" />
     <ClInclude Include="hooks\Intercepts.h" />
+    <ClInclude Include="hooks\Realms.h" />
     <ClInclude Include="hooks\Socks5Proxy.h" />
     <ClInclude Include="console\Console.h" />
   </ItemGroup>
