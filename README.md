@@ -89,6 +89,14 @@ Beyond the move from SpiderMonkey to V8, this port adds capabilities the origina
   skills / quests / waypoints, all inventory containers, active weapon set) is serialized to
   JSON and pushed to the D2Bot.Next / D2BotNG manager over `WM_COPYDATA` each game tick. The
   original left all such reporting to script code.
+- **PlugY multi-page stash.** When PlugY is present, its extra personal and account-wide
+  shared stash tabs are exposed through the game-agnostic `StashTab` API - `getStashTabs()`,
+  `unit.stashTab`, per-tab items and gold, and clicking into tabs that are not currently
+  shown. No `PlugY.exe` launcher is needed: have the manager inject `PlugY.dll` into the
+  suspended game **before** `d2bs.dll`, and the framework runs PlugY's initializer itself at
+  the right point, so things just work. Detection is version-gated and falls back to the
+  single vanilla tab when PlugY is absent or disabled. See
+  [docs/plugy_stash.md](docs/plugy_stash.md).
 - **A version-agnostic game-abstraction layer.** The JavaScript API talks to a typed game
   interface rather than hardcoded memory offsets, so the framework is decoupled from any
   single game build and other versions can be supported by adding a sibling implementation.
