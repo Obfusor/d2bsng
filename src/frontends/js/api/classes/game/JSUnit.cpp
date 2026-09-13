@@ -546,6 +546,7 @@ void JSUnit::ConfigureTemplate(v8::Isolate* isolate, v8::Local<v8::FunctionTempl
             if (!*data || data->Type() != UnitType::Item) {
                 return;
             }
+            auto lock = game::Bridge::Lock();
             info.GetReturnValue().Set(static_cast<uint8_t>(data->ItemLocation()));
         });
 
