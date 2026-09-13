@@ -2112,6 +2112,9 @@ std::vector<std::string> GetActiveFeatures() {
     if (opts.randomizeBnetCache) {
         features.emplace_back("bnetCacheFix");
     }
+    if (opts.sleepy) {
+        features.emplace_back("sleepy");
+    }
     if (plugy::IsActive()) {
         features.emplace_back("plugy");
     }

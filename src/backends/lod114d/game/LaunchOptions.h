@@ -24,6 +24,8 @@ struct LaunchOptions {
     bool reduceFailToJoin = false;    // -ftj
     bool randomizeBnetCache = false;  // -cachefix
 
+    bool sleepy = false;  // -sleepy  (force the game loop to sleep even when focused)
+
     std::optional<std::string> proxy;  // -proxy socks5://[user:password@]host:port
 
     std::vector<std::string> realms;  // -realm name:host (repeatable); raw specs, parsed into RealmRegistry

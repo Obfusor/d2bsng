@@ -85,6 +85,12 @@ std::vector<OptionSpec> BuildSpecs() {
     /// @category Battle.net
     builder.Add("-cachefix", "", +[](LaunchOptions& o, std::wstring_view) { o.randomizeBnetCache = true; });
 
+    /// @description Cap the game's frame loop so it yields the CPU even while the window is focused. Diablo II runs its
+    /// client loop uncapped when in the foreground (pegging a core); this makes the in-game and out-of-game loops sleep
+    /// each frame as they do in the background.
+    /// @category Performance
+    builder.Add("-sleepy", "", +[](LaunchOptions& o, std::wstring_view) { o.sleepy = true; });
+
     /// @description Add an extra Battle.net realm to the login server list, given as name:host (repeatable). The
     /// client dials it on the standard BNCS port 6112; it is injected into the in-memory server list only, never the
     /// registry.

@@ -131,6 +131,7 @@ SiteState siteRequiredWork;
 SiteState siteBypassMultiInstance, siteCreateWindowTitled, siteTempPathPerInstance;
 SiteState siteBnetCache1, siteBnetCache2;
 SiteState siteClassicCdKey, siteLodCdKey, siteFailToJoinBackoff;
+SiteState siteSleepyInGame, siteSleepyOoG;
 
 // P5 click-target override. clickActionActive mirrors reference Vars.bClickAction; null with active=true forces "no
 // unit selected" instead of game hover selection.
@@ -177,6 +178,16 @@ constexpr uint32_t FAIL_TO_JOIN_BACKOFF_RVA = 0x4EF28;
 // DLL (installed under -multi). Patches the `call ds:GetTempPathA` inside
 // NET_CopyDllFromArchive. Site bytes: FF 15 44 C3 6C 00 (CALL/6 IAT indirect).
 constexpr uint32_t TEMP_PATH_PER_INSTANCE_RVA = 0x11E4C4;
+
+// -sleepy: force the game loop to sleep even when the window is focused. The
+// in-game loop's throttle Sleep(10) is skipped when foreground - NOP the two-byte
+// `jnz` (75 17) that skips it. The out-of-game loop sleeps 0 instead of 20 when
+// foreground - flip its `jz` (74) to `jmp` (EB) so it always takes the sleep.
+// Reference Patch.h (D2CLIENT 0x51C31 = 0x9090, D2Win 0xFA66F = 0xEB); in 1.14d
+// both DLLs are merged into Game.exe at the same offsets over the image base.
+constexpr uint32_t SLEEPY_INGAME_RVA = 0x51C31;
+constexpr uint32_t SLEEPY_OOG_RVA = 0xFA66F;
+constexpr uint8_t SLEEPY_OOG_JMP = 0xEB;
 
 // =============================================================================
 // C-side callback dispatchers
@@ -1060,6 +1071,17 @@ void InstallAll() {
     if (lodCdKey != nullptr) {
         InstallSite(siteLodCdKey, LOD_CDKEY_RVA, &InjectLodCdKeyThunk, 5, /*isJmp=*/true);
     }
+    if (opts.sleepy) {
+        if (!siteSleepyInGame.installed) {
+            WriteByte(moduleBase + SLEEPY_INGAME_RVA, 0x90, siteSleepyInGame.original[0]);
+            WriteByte(moduleBase + SLEEPY_INGAME_RVA + 1, 0x90, siteSleepyInGame.original[1]);
+            siteSleepyInGame.installed = true;
+        }
+        if (!siteSleepyOoG.installed) {
+            WriteByte(moduleBase + SLEEPY_OOG_RVA, SLEEPY_OOG_JMP, siteSleepyOoG.original[0]);
+            siteSleepyOoG.installed = true;
+        }
+    }
 }
 
 namespace detail {
@@ -1082,6 +1104,16 @@ void RemoveAll() {
     }
 
     // Reverse install order - Conditional[] first (they were installed last).
+    if (siteSleepyOoG.installed) {
+        RestoreByte(moduleBase + SLEEPY_OOG_RVA, siteSleepyOoG.original[0]);
+        siteSleepyOoG.installed = false;
+    }
+    if (siteSleepyInGame.installed) {
+        RestoreByte(moduleBase + SLEEPY_INGAME_RVA, siteSleepyInGame.original[0]);
+        RestoreByte(moduleBase + SLEEPY_INGAME_RVA + 1, siteSleepyInGame.original[1]);
+        siteSleepyInGame.installed = false;
+    }
+
     RestoreSite(siteLodCdKey, LOD_CDKEY_RVA, 5);
     RestoreSite(siteClassicCdKey, CLASSIC_CDKEY_RVA, 5);
     RestoreSite(siteFailToJoinBackoff, FAIL_TO_JOIN_BACKOFF_RVA, 6);
