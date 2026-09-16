@@ -1,16 +1,17 @@
 #include "hooks/HookManager.h"
 
 #include <Windows.h>
-#include <detours/detours.h>
 #include <spdlog/spdlog.h>
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <thread>
 
 #include "config/AppConfig.h"
 #include "console/Console.h"
+#include "detour/Hook.h"
 #include "game/GameThread.h"
 #include "hooks/Intercepts.h"
 #include "hooks/Realms.h"
@@ -18,10 +19,16 @@
 #include "imports/D2Gfx.h"
 #include "speedhack/Speedhack.h"
 #include "utils/threadutils.h"
+#include "utils/utils.h"
 
 namespace d2bs::hooks {
 
 namespace {
+
+spdlog::logger& Log() {
+    static const auto LOGGER = utils::GetLogger("hooks.manager");
+    return *LOGGER;
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -34,12 +41,16 @@ const game::GameCallbacks* activeCallbacks = nullptr;
 std::atomic<DWORD> gameThreadId{0};
 std::atomic isInstalled{false};
 
-// Detours-real-fn pointers (Detours rewrites these to point at the trampoline
-// that calls the original implementation).
 using SleepFn = VOID(WINAPI*)(DWORD);
 using CursorLockFn = BOOL(__fastcall*)(int, int);
-SleepFn realSleep = Sleep;
-CursorLockFn realCursorLock = nullptr;
+
+VOID WINAPI HookedSleep(DWORD ms);
+BOOL __fastcall NoOpCursorLock(int /*X*/, int /*Y*/);
+
+detour::Hook<SleepFn> sleepHook{Sleep, &HookedSleep};
+// The cursor-lock site is an offset into the game module, so it is only known
+// once the module base is read at install time.
+detour::Hook<CursorLockFn> cursorLockHook{&NoOpCursorLock};
 
 // Win32 hook handle
 HHOOK getMsgHook = nullptr;
@@ -99,12 +110,12 @@ VOID WINAPI HookedSleep(DWORD ms) {
     //     speedhack's waitChainDepth / threadOptIn via NestedWaitGuard /
     //     ScaleTimeout) would access-violate.
     if (ms < 1 || !thread_utils::HasThreadLocalStorage()) {
-        realSleep(ms);
+        sleepHook(ms);
         return;
     }
     speedhack::NestedWaitGuard guard;
     if (inSleepCallback) {
-        realSleep(ms);
+        sleepHook(ms);
         return;
     }
 
@@ -113,14 +124,14 @@ VOID WINAPI HookedSleep(DWORD ms) {
     if (captured == 0 || currentTid != captured) {
         // Either we don't yet know the game thread, or this Sleep is on a
         // script / worker thread. Scale and pass through.
-        realSleep(speedhack::ScaleTimeout(ms));
+        sleepHook(speedhack::ScaleTimeout(ms));
         return;
     }
     inSleepCallback = true;
     if (activeCallbacks != nullptr && activeCallbacks->onSleep != nullptr) {
         activeCallbacks->onSleep(std::chrono::milliseconds{ms});
     } else {
-        realSleep(speedhack::ScaleTimeout(ms));
+        sleepHook(speedhack::ScaleTimeout(ms));
     }
     inSleepCallback = false;
 }
@@ -297,20 +308,14 @@ LRESULT CALLBACK SubclassedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 // ---------------------------------------------------------------------------
 
 void InstallDetoursHooks() {
-    auto base = reinterpret_cast<uintptr_t>(GetModuleHandle(nullptr));
-    realCursorLock = reinterpret_cast<CursorLockFn>(base + CURSOR_LOCK_OFFSET);
-    realSleep = Sleep;
+    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandle(nullptr));
+    cursorLockHook.SetTarget(reinterpret_cast<CursorLockFn>(base + CURSOR_LOCK_OFFSET));
 
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourAttach(reinterpret_cast<PVOID*>(&realCursorLock), reinterpret_cast<PVOID>(&NoOpCursorLock));
-    DetourAttach(reinterpret_cast<PVOID*>(&realSleep), reinterpret_cast<PVOID>(&HookedSleep));
-    const LONG err = DetourTransactionCommit();
-    if (err != NO_ERROR) {
-        // Failure leaves realSleep == ::Sleep (no trampoline): HookedSleep never
+    if (const int32_t err = detour::AttachAll({&cursorLockHook, &sleepHook}); err != 0) {
+        // Failure leaves sleepHook reaching ::Sleep directly: HookedSleep never
         // runs, onSleep never fires, GameLoop / chickening / drain all stall.
         // Bot is non-functional either way; log so the user can diagnose.
-        spdlog::error("Detours install failed: {}", err);
+        Log().error("Detours install failed: {}", err);
     }
 
     // Separate transaction so a speedhack failure doesn't leave Sleep / cursor
@@ -334,13 +339,8 @@ void RemoveDetoursHooks() {
     socks5::Remove();
     speedhack::Remove();
 
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourDetach(reinterpret_cast<PVOID*>(&realCursorLock), reinterpret_cast<PVOID>(&NoOpCursorLock));
-    DetourDetach(reinterpret_cast<PVOID*>(&realSleep), reinterpret_cast<PVOID>(&HookedSleep));
-    const LONG err = DetourTransactionCommit();
-    if (err != NO_ERROR) {
-        spdlog::error("Detours remove failed: {}", err);
+    if (const int32_t err = detour::DetachAll({&cursorLockHook, &sleepHook}); err != 0) {
+        Log().error("Detours remove failed: {}", err);
     }
 }
 
