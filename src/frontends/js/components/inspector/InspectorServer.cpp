@@ -2,6 +2,7 @@
 
 #include <ixwebsocket/IXConnectionState.h>
 #include <ixwebsocket/IXHttp.h>
+#include <ixwebsocket/IXHttpServer.h>
 #include <ixwebsocket/IXNetSystem.h>
 #include <ixwebsocket/IXSocket.h>
 #include <ixwebsocket/IXWebSocket.h>
@@ -9,8 +10,10 @@
 #include <ixwebsocket/IXWebSocketServer.h>
 #include <nlohmann/json.hpp>
 
+#include <chrono>
 #include <format>
 #include <functional>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -49,47 +52,26 @@ bool IsPortFree(uint16_t port) {
     return isFree;
 }
 
-}  // namespace
-
-// One localhost port serving both the /json discovery endpoints (plain HTTP)
-// and the /<targetId> WebSocket upgrades. ix::HttpServer does exactly this, but
-// its dispatch compares the Upgrade header value case-SENSITIVELY ("websocket"),
-// and the browser-side proxy chrome://inspect attaches through sends
-// "Upgrade: WebSocket" - so every click-inspect upgrade fell through to the HTTP
-// handler and got a 404. The header value is case-insensitive per RFC 6455/7230
-// (ixwebsocket's own WS handshake checks it case-insensitively; only the
-// dispatch is strict), and ix::HttpServer is final, so this reimplements its
-// small dispatch on ix::WebSocketServer with a case-insensitive check.
-class DualModeServer : public ix::WebSocketServer {
-   public:
-    using HttpHandler = std::function<ix::HttpResponsePtr(const ix::HttpRequestPtr&)>;
-
-    DualModeServer(int port, const std::string& host) : WebSocketServer(port, host) {}
-
-    void SetHttpHandler(HttpHandler handler) { httpHandler_ = std::move(handler); }
-
-   private:
-    // Matches ix::HttpServer::kDefaultTimeoutSecs.
-    static constexpr int PARSE_TIMEOUT_SECS = 30;
-
-    void handleConnection(std::unique_ptr<ix::Socket> socket,
-                          std::shared_ptr<ix::ConnectionState> connectionState) override {
-        auto ret = ix::Http::parseRequest(socket, PARSE_TIMEOUT_SECS);
-        if (std::get<0>(ret)) {
-            const auto& request = std::get<2>(ret);
-            // Header NAMES are case-insensitive in the map; the VALUE compare
-            // must be case-insensitive too.
-            if (utils::ToLower(request->headers["Upgrade"]).find("websocket") != std::string::npos) {
-                handleUpgrade(std::move(socket), connectionState, request);
-            } else if (httpHandler_) {
-                ix::Http::sendResponse(httpHandler_(request), socket);
-            }
+// A restart (the Settings toggle, a port change) stops the server and binds
+// again immediately, and sockets the old listener owned can outlive stop() by a
+// moment - long enough for the exclusive probe above to refuse a port that is
+// about to be free. Give it a beat before believing the port belongs to someone
+// else; a port a second instance really holds stays busy for the whole window.
+bool WaitForPortFree(uint16_t port, std::chrono::milliseconds timeout) {
+    constexpr std::chrono::milliseconds RETRY_INTERVAL{50};
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (true) {
+        if (IsPortFree(port)) {
+            return true;
         }
-        connectionState->setTerminated();
+        if (std::chrono::steady_clock::now() >= deadline) {
+            return false;
+        }
+        std::this_thread::sleep_for(RETRY_INTERVAL);
     }
+}
 
-    HttpHandler httpHandler_;
-};
+}  // namespace
 
 InspectorServer& InspectorServer::Instance() {
     static InspectorServer instance;
@@ -111,18 +93,20 @@ bool InspectorServer::Start(uint16_t port) {
     // own init refcount; balance this with uninitNetSystem() in Stop().
     ix::initNetSystem();
 
-    if (!IsPortFree(port)) {
+    constexpr std::chrono::milliseconds BIND_WAIT{2000};
+    if (!WaitForPortFree(port, BIND_WAIT)) {
         Logger()->error("port {} is already in use (another instance?)", port);
         ix::uninitNetSystem();
         return false;
     }
 
-    auto server = std::make_unique<DualModeServer>(static_cast<int>(port), "127.0.0.1");
+    auto server = std::make_unique<ix::HttpServer>(static_cast<int>(port), "127.0.0.1");
 
     // Plain HTTP: serve the Chrome DevTools discovery endpoints. WebSocket
-    // upgrades never reach this handler - DualModeServer routes them to the
+    // upgrades never reach this handler - the server routes them to the
     // client-message callback below.
-    server->SetHttpHandler([this](const ix::HttpRequestPtr& request) -> ix::HttpResponsePtr {
+    server->setOnConnectionCallback([this](const ix::HttpRequestPtr& request,
+                                           const std::shared_ptr<ix::ConnectionState>&) -> ix::HttpResponsePtr {
         ix::WebSocketHttpHeaders headers;
         headers["Content-Type"] = "application/json; charset=UTF-8";
         headers["Cache-Control"] = "no-cache";
@@ -180,7 +164,7 @@ bool InspectorServer::Start(uint16_t port) {
 }
 
 void InspectorServer::Stop() {
-    std::unique_ptr<DualModeServer> server;
+    std::unique_ptr<ix::HttpServer> server;
     std::vector<std::shared_ptr<InspectorTarget>> targets;
     {
         std::scoped_lock lock(mutex_);
@@ -321,21 +305,17 @@ std::string InspectorServer::BuildListJson() const {
     nlohmann::json list = nlohmann::json::array();
     for (const auto& [id, target] : targets_) {
         const std::string wsUrl = std::format("127.0.0.1:{}/{}", port_, id);
-        // inspector.html is the full bundled frontend and is verified to attach to
-        // our raw V8 sessions; js_app.html (the Node-specific frontend Node serves
-        // by default) is not. Emit the Compat key too for tools that read it.
-        const std::string frontend =
-            "devtools://devtools/bundled/inspector.html?experiments=true&v8only=true&ws=" + wsUrl;
-        // type "page", NOT "node": chrome://inspect's click-inspect opens node
-        // targets with the tip-of-tree js_app frontend fetched from
-        // chrome-devtools-frontend.appspot.com (see DevToolsWindow::
-        // OpenDevToolsWindow, "Direct node targets will always open using ToT
-        // front-end") - if that remote fetch stalls the window never attaches.
-        // "page" targets open the bundled frontend and attach via the browser
-        // proxy, which works against our raw V8 sessions.
+        // Node's own combination, and the only one that yields the right UI.
+        // What decides whether DevTools offers a DOM at all is `type`, not the
+        // frontend: a "page" target is assumed to have one, so the window opens
+        // on an Elements panel that can never fill, and `v8only` does not undo
+        // that - inspector.html ignores it. js_app.html is the V8-only frontend
+        // (Sources, Console, Memory, Profiler) and reads `v8only`, but only a
+        // "node" target gets routed to it.
+        const std::string frontend = "devtools://devtools/bundled/js_app.html?experiments=true&v8only=true&ws=" + wsUrl;
         list.push_back({
             {"id", id},
-            {"type", "page"},
+            {"type", "node"},
             {"title", target->Title()},
             {"description", "d2bs script"},
             {"url", target->Url()},
