@@ -279,6 +279,7 @@ void SettingsPanel::Draw() {
             } else {
                 DisplayRow("V8 platform", "default, %d thread(s)", config.v8ThreadPoolSize);
             }
+            DisplayRow("V8 version", "%s", v8::V8::GetVersion());
             const auto paths = config.GetScriptPaths();
             DisplayRow("Script base", "%s", paths.basePath.string().c_str());
             DisplayRow("Game script", "%s", paths.gameScript.c_str());
