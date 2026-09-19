@@ -118,7 +118,7 @@ void ResetNativeBindings() {
 void MethodTrampoline(const v8::FunctionCallbackInfo<v8::Value>& args) {
     OnNativeCall(args.GetIsolate());
     auto* binding =
-        static_cast<NativeBinding*>(args.Data().As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
+        static_cast<NativeBinding*>(args.DataV2().As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
     if (binding == nullptr || binding->callback == nullptr) {
         return;
     }
@@ -129,7 +129,7 @@ void MethodTrampoline(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void PropertyGetterTrampoline(v8::Local<v8::Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
     OnNativeCall(info.GetIsolate());
     auto* accessors =
-        static_cast<PropertyAccessors*>(info.Data().As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
+        static_cast<PropertyAccessors*>(info.DataV2().As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
     if (accessors == nullptr || accessors->getter == nullptr) {
         return;
     }
@@ -141,7 +141,7 @@ void PropertySetterTrampoline(v8::Local<v8::Name> property, v8::Local<v8::Value>
                               const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     OnNativeCall(info.GetIsolate());
     auto* accessors =
-        static_cast<PropertyAccessors*>(info.Data().As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
+        static_cast<PropertyAccessors*>(info.DataV2().As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
     if (accessors == nullptr || accessors->setter == nullptr) {
         return;
     }

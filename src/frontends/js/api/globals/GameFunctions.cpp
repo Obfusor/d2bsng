@@ -1167,7 +1167,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                         // churn - a different dialog opened in the meantime won't accept
                         // the click unless it has a line with the same text.
                         auto* iso = handlerArgs.GetIsolate();
-                        const std::string text = v8_convert::ToString(iso, handlerArgs.Data());
+                        const std::string text = v8_convert::ToString(iso, handlerArgs.DataV2().As<v8::Value>());
                         if (!game::SelectDialogLineByText(text)) {
                             // Reference parallel: my_clickDialog at JSGame.cpp:223.
                             v8_error::ThrowError(iso, "That dialog is not currently clickable.");
