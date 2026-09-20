@@ -11,7 +11,7 @@
 #include "fixtures/MapFixture.h"
 #include "navigation/Pathfinder.h"
 
-using namespace d2bs::pathfinding;
+using namespace d2bs::navigation;
 using namespace d2bs::test;
 
 namespace {

@@ -13,7 +13,7 @@
 #include "game/Room.h"
 #include "utils/VirtualArray.h"
 
-namespace d2bs::pathfinding {
+namespace d2bs::navigation {
 
 namespace {
 

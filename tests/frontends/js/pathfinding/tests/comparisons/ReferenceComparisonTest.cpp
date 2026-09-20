@@ -18,7 +18,7 @@
 #include "pathfinding/reference/NoPathReducer.h"
 #include "pathfinding/reference/WalkPathReducer.h"
 
-using namespace d2bs::pathfinding;
+using namespace d2bs::navigation;
 
 // --- Helpers ---
 

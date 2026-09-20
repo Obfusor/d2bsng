@@ -12,4 +12,4 @@
 
 #include "navigation/Pathfinder.h"
 
-using d2bs::pathfinding::Point;
+using d2bs::navigation::Point;

@@ -14,7 +14,7 @@ namespace d2bs::game {
 class Level;
 }  // namespace d2bs::game
 
-namespace d2bs::pathfinding {
+namespace d2bs::navigation {
 
 // Geometric primitives are defined in game/Types.h; alias them here so pathfinding
 // code and consumers can write `d2bs::pathfinding::{Point,Position,Size,Rect}` directly.

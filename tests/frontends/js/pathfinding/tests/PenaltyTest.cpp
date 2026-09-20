@@ -2,7 +2,7 @@
 
 #include "navigation/Pathfinder.h"
 
-using namespace d2bs::pathfinding;
+using namespace d2bs::navigation;
 
 TEST_CASE("Walk mode with penalties avoids wall-adjacent tiles") {
     CollisionLookup coll;

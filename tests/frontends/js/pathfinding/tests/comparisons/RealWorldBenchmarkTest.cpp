@@ -16,7 +16,7 @@
 #include "pathfinding/reference/TeleportPathReducer.h"
 #include "pathfinding/reference/WalkPathReducer.h"
 
-using namespace d2bs::pathfinding;
+using namespace d2bs::navigation;
 using namespace d2bs::test;
 
 namespace {

@@ -4,7 +4,7 @@
 
 #include "navigation/Pathfinder.h"
 
-using namespace d2bs::pathfinding;
+using namespace d2bs::navigation;
 
 TEST_CASE("Teleport A* finds path in open grid") {
     CollisionLookup coll;

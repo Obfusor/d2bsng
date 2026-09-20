@@ -2,7 +2,7 @@
 
 #include "navigation/Pathfinder.h"
 
-using namespace d2bs::pathfinding;
+using namespace d2bs::navigation;
 
 TEST_CASE("LevelGrid Contains checks bounds correctly") {
     LevelGrid grid({.origin = {.x = 100, .y = 200}, .size = {.width = 10, .height = 10}});

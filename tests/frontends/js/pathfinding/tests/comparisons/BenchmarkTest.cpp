@@ -16,13 +16,13 @@
 #include "pathfinding/reference/TeleportPathReducer.h"
 #include "pathfinding/reference/WalkPathReducer.h"
 
-using d2bs::pathfinding::CollisionLookup;
-using d2bs::pathfinding::FindPathOnGrid;
-using d2bs::pathfinding::LevelGrid;
-using d2bs::pathfinding::Point;
-using d2bs::pathfinding::Position;
-using d2bs::pathfinding::ReductionType;
-using d2bs::pathfinding::collision::BLOCK_WALK;
+using d2bs::navigation::CollisionLookup;
+using d2bs::navigation::FindPathOnGrid;
+using d2bs::navigation::LevelGrid;
+using d2bs::navigation::Point;
+using d2bs::navigation::Position;
+using d2bs::navigation::ReductionType;
+using d2bs::navigation::collision::BLOCK_WALK;
 
 namespace {
 

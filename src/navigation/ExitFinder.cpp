@@ -49,8 +49,8 @@ using game::Point;
 using game::Position;
 using game::Rect;
 using game::UnitType;
-using pathfinding::BuildLevelGrid;
-using pathfinding::CollisionLookup;
+using navigation::BuildLevelGrid;
+using navigation::CollisionLookup;
 
 namespace {
 

@@ -45,7 +45,7 @@ namespace {
 
 // Emit a JS array of {x, y} objects from a span of pathfinding positions.
 v8::Local<v8::Array> PositionsToV8(v8::Isolate* isolate, v8::Local<v8::Context> context,
-                                   std::span<const pathfinding::Position> points) {
+                                   std::span<const navigation::Position> points) {
     auto arr = v8::Array::New(isolate, static_cast<int32_t>(points.size()));
     for (size_t i = 0; i < points.size(); ++i) {
         v8::HandleScope innerScope(isolate);
@@ -219,12 +219,12 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 return;
             }
 
-            if (reductionType > static_cast<uint32_t>(pathfinding::ReductionType::JSCallback)) {
+            if (reductionType > static_cast<uint32_t>(navigation::ReductionType::JSCallback)) {
                 v8_error::ThrowRangeError(isolate, "reductionType must be 0-3");
                 return;
             }
 
-            if (reductionType == static_cast<uint32_t>(pathfinding::ReductionType::JSCallback) &&
+            if (reductionType == static_cast<uint32_t>(navigation::ReductionType::JSCallback) &&
                 (args.Length() < 10 || !args[7]->IsFunction() || !args[8]->IsFunction() || !args[9]->IsFunction())) {
                 v8_error::ThrowError(isolate, "Invalid function values for reduction type");
                 return;
@@ -232,22 +232,22 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
             auto context = isolate->GetCurrentContext();
 
-            pathfinding::PathRequest request;
+            navigation::PathRequest request;
             request.areaId = area;
             request.start = src;
             request.end = dst;
-            request.reduction = static_cast<pathfinding::ReductionType>(reductionType);
+            request.reduction = static_cast<navigation::ReductionType>(reductionType);
             request.radius = static_cast<int32_t>(radius);
             if (auto* script = ScriptEngine::Instance().GetScript(isolate)) {
                 request.cancelToken = script->GetStopToken();
             }
 
-            if (reductionType == static_cast<uint32_t>(pathfinding::ReductionType::JSCallback)) {
+            if (reductionType == static_cast<uint32_t>(navigation::ReductionType::JSCallback)) {
                 auto rejectFunc = args[7].As<v8::Function>();
                 auto reduceFunc = args[8].As<v8::Function>();
                 auto mutateFunc = args[9].As<v8::Function>();
 
-                request.jsReject = [isolate, context, rejectFunc](pathfinding::Position p) -> bool {
+                request.jsReject = [isolate, context, rejectFunc](navigation::Position p) -> bool {
                     v8::HandleScope scope(isolate);
                     v8::TryCatch tryCatch(isolate);
                     std::array<v8::Local<v8::Value>, 2> argv = {v8_convert::ToV8(isolate, p.x),
@@ -260,7 +260,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
 
                 request.jsReduce =
                     [isolate, context,
-                     reduceFunc](const std::vector<pathfinding::Position>& path) -> std::vector<pathfinding::Position> {
+                     reduceFunc](const std::vector<navigation::Position>& path) -> std::vector<navigation::Position> {
                     v8::HandleScope scope(isolate);
                     v8::TryCatch tryCatch(isolate);
 
@@ -273,7 +273,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                     }
 
                     auto resultArr = callResult.ToLocalChecked().As<v8::Array>();
-                    std::vector<pathfinding::Position> reduced;
+                    std::vector<navigation::Position> reduced;
                     reduced.reserve(resultArr->Length());
                     for (uint32_t i = 0; i < resultArr->Length(); i++) {
                         auto elem = resultArr->Get(context, i).ToLocalChecked();
@@ -283,7 +283,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                     return reduced;
                 };
 
-                request.jsMutate = [isolate, context, mutateFunc](pathfinding::Position p) -> pathfinding::Position {
+                request.jsMutate = [isolate, context, mutateFunc](navigation::Position p) -> navigation::Position {
                     v8::HandleScope scope(isolate);
                     v8::TryCatch tryCatch(isolate);
                     std::array<v8::Local<v8::Value>, 2> argv = {v8_convert::ToV8(isolate, p.x),
@@ -302,7 +302,7 @@ void RegisterGameFunctions(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> g
                 };
             }
 
-            auto path = d2bs::pathfinding::FindPath(request);
+            auto path = d2bs::navigation::FindPath(request);
             args.GetReturnValue().Set(PositionsToV8(isolate, context, path));
         });
 
