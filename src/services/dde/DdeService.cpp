@@ -1,4 +1,4 @@
-#include "components/dde/DdeService.h"
+#include "dde/DdeService.h"
 
 #include <array>
 #include <future>
@@ -6,7 +6,7 @@
 
 #include "utils/threadutils.h"
 
-namespace d2bs::dde {
+namespace d2bs::services::dde {
 
 namespace {
 
@@ -272,4 +272,4 @@ std::optional<std::string> DdeService::Send(Transaction txn, std::string_view se
     return result;
 }
 
-}  // namespace d2bs::dde
+}  // namespace d2bs::services::dde
