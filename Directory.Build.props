@@ -50,6 +50,71 @@
     <D2bsProfiling Condition="'$(D2bsProfiling)' == ''">true</D2bsProfiling>
   </PropertyGroup>
 
+  <!-- The published V8 this tree builds against. Nothing of V8 is in the
+       repository: the headers and the monolith both come out of one published
+       archive, which the build downloads on demand (see scripts/fetch_v8.ps1).
+       Declaring the version here rather than in a CI step or a README
+       instruction is what makes a fresh clone build unattended, and leaves one
+       place to edit for an upgrade.
+
+       The version and the archive's flavor are both in the directory the
+       archive unpacks into, and that directory is what the compiler's include
+       path and the linker's library path point at. So changing V8Version
+       changes where every one of those points, the archive for the new version
+       is fetched, and headers and library cannot be from different builds of
+       V8 - not because something checks, but because there is no path that
+       expresses the mismatch. The flavor is in there too because v8-gn.h
+       differs between the release and debug archives (every other header is
+       identical), and it is the header that lays objects out the way the
+       library does - an ABI requirement, not a convenience.
+
+       Old versions are left alone when this is bumped. They are over a gigabyte
+       each, so delete dependencies/v8/<old version> by hand once nothing builds
+       against it.
+
+       V8Toolset is the MSVC toolset the published archive was built with, which
+       is part of its name. It is a floor, not a match: any toolset at least
+       that new links it, so this is spelled out rather than resolved through
+       the releases API - a literal name needs no network round-trip, no JSON
+       parsing and no token, and the URL it produces is the same one a human
+       would click. It only changes when the publishing runner's compiler does,
+       which is a V8 upgrade anyway.
+
+       V8Flavor follows $(Configuration), which build.ps1, the solution and the
+       IDE all supply as a global property, so it is set by the time this is
+       evaluated. Overriding V8Asset is what lets a build point at an archive
+       whose name does not follow from the version. -->
+  <PropertyGroup>
+    <V8Version Condition="'$(V8Version)' == ''">15.6.8</V8Version>
+    <V8Repo Condition="'$(V8Repo)' == ''">ResurrectedTrader/v8-static-win</V8Repo>
+    <V8ReleaseTag Condition="'$(V8ReleaseTag)' == ''">v8-$(V8Version)</V8ReleaseTag>
+    <V8Toolset Condition="'$(V8Toolset)' == ''">14.44</V8Toolset>
+    <V8Flavor Condition="'$(V8Flavor)' == '' And '$(Configuration)' == 'Debug'">debug</V8Flavor>
+    <V8Flavor Condition="'$(V8Flavor)' == ''">release</V8Flavor>
+    <V8Asset Condition="'$(V8Asset)' == ''">v8-$(V8Version)-x86-$(V8Flavor)-msvc$(V8Toolset).zip</V8Asset>
+    <V8Dir Condition="'$(V8Dir)' == ''">$(MSBuildThisFileDirectory)dependencies\v8\$(V8Version)\x86-$(V8Flavor)</V8Dir>
+    <V8IncludeDir>$(V8Dir)\include</V8IncludeDir>
+    <V8MonolithLib>$(V8Dir)\v8_monolith.lib</V8MonolithLib>
+  </PropertyGroup>
+
+  <!-- Unpack that archive before anything compiles against its headers. Only a
+       project that needs V8 sets V8Required (js, lod114d and d2bs do), so the
+       test executable fetches nothing. Both halves land together because they
+       come out of the same download - discarding the library an x64 build
+       cannot link would only force the next Win32 build to fetch it again.
+
+       The test is the directory, not a file in it: fetch_v8.ps1 extracts
+       elsewhere and renames the finished tree into place in one move, so
+       $(V8Dir) either does not exist or is a complete install. A file inside it
+       would only say that much of an install got as far as that file.
+
+       Exists() is re-evaluated when the target would run, so a build that
+       already has the archive unpacked does not even start PowerShell. -->
+  <Target Name="FetchV8" BeforeTargets="ClCompile;ResourceCompile;Link" Condition="'$(V8Required)' == 'true'">
+    <Exec Condition="!Exists('$(V8Dir)')"
+          Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\fetch_v8.ps1&quot; -Repo &quot;$(V8Repo)&quot; -Tag &quot;$(V8ReleaseTag)&quot; -Asset &quot;$(V8Asset)&quot; -Destination &quot;$(V8Dir)&quot;" />
+  </Target>
+
   <!-- Every project appends to %(PreprocessorDefinitions), so this reaches all of them. -->
   <ItemDefinitionGroup Condition="'$(D2bsProfiling)' == 'true'">
     <ClCompile>

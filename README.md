@@ -183,7 +183,7 @@ Design notes for contributors live in [`docs/`](docs/):
 - Windows SDK **10.0.26100.0**
 - The 32-bit (Win32) toolchain - the project is x86-only for 1.14d compatibility
 - [vcpkg](https://github.com/microsoft/vcpkg) - dependencies are restored from `vcpkg.json`
-- A monolithic V8 build that you supply (see [V8](#v8))
+- V8 headers + monolith - the build downloads them for you (see [V8](#v8))
 
 ## Getting the source
 
@@ -200,24 +200,58 @@ git submodule update --init --recursive
 
 ## V8
 
-The V8 headers are vendored under `dependencies/v8/include` (**V8 15.6.8**), but the prebuilt
-static libraries are **not** - they are over a gigabyte each. Download them from
+**Nothing of V8 is in this repository** - not the monolith, which is over a gigabyte per
+configuration, and not the headers. The build downloads them. The first build that needs V8
+pulls one archive from
 [v8-static-win](https://github.com/ResurrectedTrader/v8-static-win/releases), which builds the
-monolith for 32-bit Windows against the static CRT, and place `v8_monolith.lib` from each
-archive at:
+monolith for 32-bit Windows against the static CRT, and unpacks it into a directory named for
+the version and the archive it came from:
 
-- `dependencies/v8/libs/x86-release/v8_monolith.lib` (from the `x86-release` archive)
-- `dependencies/v8/libs/x86-debug/v8_monolith.lib` (from the `x86-debug` archive)
+```
+dependencies/v8/15.6.8/x86-release/include/...
+dependencies/v8/15.6.8/x86-release/v8_monolith.lib
+dependencies/v8/15.6.8/x86-debug/...
+```
 
-Take the release matching the vendored headers - the library and the headers have to be the
-same V8, or the link fails on changed symbols. CI fetches exactly these assets; the tag it
-pins is `V8_RELEASE` in `.github/workflows/ci-build.yml`.
+That download is a few hundred megabytes and happens once per version and configuration.
+Later builds see the directory and skip it, and only the configuration being built is
+fetched - a Release build never pulls the debug archive.
 
-The `msvc<x.y>` in each filename is the MSVC toolset the library was built with, and it is a
-**floor, not a match**: build with that toolset or newer. An older one fails with undefined
-`__std_*` symbols, because MSVC's STL headers call helpers that ship in its own `libcpmt.lib`.
+Which V8 that is lives in `Directory.Build.props`, as `V8Version` / `V8Repo` / `V8ReleaseTag` /
+`V8Toolset`. That is the only place it is written down: the compiler's include path, the
+linker's library path and the CI cache key are all derived from it. Because the version is in
+the path, **changing `V8Version` changes where everything points**, so the new archive is
+fetched and the headers and the library are always from one build of V8. Header/library skew
+is not something a check catches - there is no path that expresses it.
 
-Compile with `/DV8_GN_HEADER` so the public headers pick up the bundled `include/v8-gn.h` and
+The flavour is in the path too because `v8-gn.h` differs between the release and debug
+archives (every other header is identical), and that header is what makes the compiler lay
+objects out the way the library does - an ABI requirement, not a convenience.
+
+`V8Toolset` is the MSVC toolset the published archive was built with, which is part of its
+name. It is a **floor, not a match**: build with that toolset or newer. An older one fails
+with undefined `__std_*` symbols, because MSVC's STL headers call helpers that ship in its own
+`libcpmt.lib`.
+
+**A fresh clone has no V8 headers until the first build**, so an editor cannot resolve
+`#include <v8.h>` before then (the same is true of the vcpkg headers). To populate the
+dependencies without compiling anything:
+
+```
+.\build.ps1 deps
+```
+
+Bumping `V8Version` leaves the old directory alone. They are over a gigabyte each, so delete
+`dependencies/v8/<old version>` by hand once nothing builds against it.
+
+To supply the archive yourself instead - working offline, or testing a particular build -
+download it by hand and unpack it into `dependencies/v8/<version>/x86-<config>/`. That
+directory existing is what the build takes as "installed", so unpack it somewhere else and
+move it into place when it is complete; a directory that appears half-written will be trusted
+and fail later as a much stranger error. That is why the fetch extracts to a staging directory
+beside it and renames the finished tree in one move.
+
+Compile with `/DV8_GN_HEADER` so the public headers pick up the archive's `include/v8-gn.h` and
 lay objects out the way the library does - this is an ABI requirement, not a convenience - and
 link `ntdll.lib`, `userenv.lib` and `bcrypt.lib` alongside it. The projects here already do
 both. Each archive's `README.txt` lists the full system-library set.
@@ -240,6 +274,7 @@ directory. From a PowerShell prompt in the repo root:
 .\build.ps1 check-format  # verify formatting without modifying
 .\build.ps1 lint          # clang-tidy analysis (scripts/lint.ps1)
 .\build.ps1 fix           # clang-tidy --fix
+.\build.ps1 deps          # download V8 (headers + monolith) without building
 ```
 
 From cmd or another shell, invoke it as

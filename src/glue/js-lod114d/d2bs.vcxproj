@@ -46,6 +46,11 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <!-- This project links the V8 monolith, so the FetchV8 target in
+       Directory.Build.props unpacks the archive before it builds. -->
+  <PropertyGroup>
+    <V8Required>true</V8Required>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -62,7 +67,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)dependencies\v8\libs\x86-debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(V8Dir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>v8_monolith.lib;ntdll.lib;userenv.lib;bcrypt.lib;fmtd.lib;spdlogd.lib;sqlite3.lib;StackWalker.lib;detours.lib;imguid.lib;ixwebsocket.lib;zsd.lib;winmm.lib;dbghelp.lib;opengl32.lib;psapi.lib;shell32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -86,7 +91,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)dependencies\v8\libs\x86-release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(V8Dir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>v8_monolith.lib;ntdll.lib;userenv.lib;bcrypt.lib;fmt.lib;spdlog.lib;sqlite3.lib;StackWalker.lib;detours.lib;imgui.lib;ixwebsocket.lib;zs.lib;winmm.lib;dbghelp.lib;opengl32.lib;psapi.lib;shell32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
